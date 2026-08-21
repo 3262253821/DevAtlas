@@ -10,7 +10,8 @@ from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.user import User
 
-
+# Bearer 认证方案,负责读取 HTTP 请求头中的 Authorization 字段
+# 例如：Authorization: Bearer eyJ...，然后注入credentials参数
 bearer_scheme = HTTPBearer(
     auto_error=False,
 )
@@ -41,7 +42,7 @@ def get_current_user(
             },
         )
 
-    # credentials.credentials 是访问令牌,即jwt字符串
+    # credentials.credentials 是访问令牌，是Bearer eyJ...，即Bearer后面的jwt字符串
     # 它是 Bearer 认证方案的令牌部分
     token = credentials.credentials
 
