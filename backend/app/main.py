@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.db.session import check_database_connection
 from app.routers.auth import router as auth_router
 from app.routers.knowledge_base import router as knowledge_base_router
+from app.routers.documents import router as documents_router
 
 app = FastAPI(
     title="DevAtlas API",
@@ -12,6 +13,7 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(knowledge_base_router)
+app.include_router(documents_router)
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
