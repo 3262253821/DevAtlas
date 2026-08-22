@@ -24,10 +24,10 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T02：`.env` 配置管理和配置缺失检查；
 - T03：SQLAlchemy、MySQL、Alembic 和 `users` 表迁移；
 - T04：用户注册、登录、密码哈希、JWT 签发与当前用户鉴权。
+- T05：知识库 CRUD、`owner_id` 所有者绑定和跨用户权限校验。
 
 下一步：
 
-- T05：知识库 CRUD 和所有者权限；
 - T06-T09：文件上传、文档解析、版本管理、Embedding 和 Chroma 入库；
 - T10-T13：RAG 检索、DeepSeek 调用、问答 SSE 和故障分析；
 - T14-T15：Vue 联调、测试和交付材料。
@@ -169,6 +169,19 @@ Authorization: Bearer <access_token>
 - 无 Token 访问 `/me`：`401 Unauthorized`；
 - 伪造或失效 Token：`401 Unauthorized`；
 - 合法 Token 访问 `/me`：`200 OK`。
+
+## 当前知识库接口
+
+接口前缀：`/api/v1/knowledge-bases`
+
+- `POST /api/v1/knowledge-bases`：创建知识库；
+- `GET /api/v1/knowledge-bases`：查询当前用户自己的知识库；
+- `GET /api/v1/knowledge-bases/{knowledge_base_id}`：查询当前用户有权访问的知识库；
+- `DELETE /api/v1/knowledge-bases/{knowledge_base_id}`：删除当前用户自己的知识库。
+
+知识库的 `owner_id` 由服务端根据 JWT 中的当前用户确定，不信任客户端传入的所有者 ID。详情和删除查询同时校验资源 ID 与 `owner_id`；其他用户访问时返回 `404`，避免泄露资源是否存在。同一用户下知识库名称不能重复，重复创建返回 `409`。
+
+已验证用户 A、用户 B 的跨用户访问边界：用户 B 看不到、读取不了、删除不了用户 A 的知识库。
 
 ## Git 提交约定
 
