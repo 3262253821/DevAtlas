@@ -8,3 +8,5 @@ pwdlib[argon2]
 PyJWT
 python-multipart
 pypdf
+sentence-transformers
+chromadb

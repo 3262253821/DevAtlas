@@ -7,15 +7,26 @@ from sqlalchemy.orm import Session
 from app.core.config import PROJECT_ROOT
 from app.core.file_security import normalize_filename
 from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
 from app.models.document_version import DocumentVersion
 from app.services.document_parser import (
     DocumentParseError,
     parse_document,
 )
+from app.services.embedding import (
+    EmbeddingError,
+    embed_texts,
+)
 from app.services.file_storage import SavedFile
 from app.services.text_splitter import (
     InvalidChunkConfigError,
     split_text_by_sentence,
+)
+from app.services.vector_store import (
+    VectorStoreError,
+    build_vector_id,
+    delete_vectors,
+    upsert_chunks,
 )
 
 
@@ -39,7 +50,9 @@ def _relative_storage_path(file_path: Path) -> str:
         return file_path.as_posix()
 
 
-def _delete_duplicate_file(saved_file: SavedFile) -> None:
+def _delete_duplicate_file(
+    saved_file: SavedFile,
+) -> None:
     """
     重复内容不需要保留新文件。
     """
@@ -48,21 +61,44 @@ def _delete_duplicate_file(saved_file: SavedFile) -> None:
     )
 
 
+def _build_chunk_metadata(
+    *,
+    knowledge_base_id: int,
+    document_id: int,
+    version_id: int,
+    version_number: int,
+    filename: str,
+    chunk_count: int,
+) -> list[dict[str, int | str | bool | None]]:
+    return [
+        {
+            "knowledge_base_id": knowledge_base_id,
+            "document_id": document_id,
+            "document_version_id": version_id,
+            "version_number": version_number,
+            "chunk_index": index,
+            "source_filename": filename,
+            "page_number": None,
+            "is_searchable": True,
+        }
+        for index in range(chunk_count)
+    ]
+
+
 def ingest_document(
     db: Session,
     knowledge_base_id: int,
     saved_file: SavedFile,
 ) -> DocumentIngestionResult:
     """
-    把 T06 保存成功的文件接入 T07 文档处理流程。
+    把 T06 保存成功的文件接入 T07/T08 文档处理流程。
     """
-    # 规范化文件名
     normalized_filename = normalize_filename(
         saved_file.original_filename
     ).casefold()
 
     document = db.scalar(
-        # 在当前知识库中，找这个规范化文件名对应的逻辑文档
+        # 先查找逻辑文档
         select(Document).where(
             Document.knowledge_base_id
             == knowledge_base_id,
@@ -72,8 +108,8 @@ def ingest_document(
     )
 
     if document is not None:
-        # 检查是否有重复版本，判断条件是同一个逻辑文件名和相同文件内容
         duplicate_version = db.scalar(
+            # 检查是否有相同文件 SHA256 的版本
             select(DocumentVersion).where(
                 DocumentVersion.document_id
                 == document.id,
@@ -91,7 +127,6 @@ def ingest_document(
                 duplicate=True,
             )
 
-    # 第一次上传时，数据库中还没有这个逻辑文档，就创建一个
     if document is None:
         document = Document(
             knowledge_base_id=knowledge_base_id,
@@ -100,8 +135,6 @@ def ingest_document(
             file_type=saved_file.file_type,
         )
         db.add(document)
-        # flush() 会把 INSERT 发送给数据库，并取得自增的 document.id，但事务还没有最终提交，
-        # 所以这里需要先提交事务，才能使用 document.id
         db.flush()
 
     max_version_number = db.scalar(
@@ -128,22 +161,26 @@ def ingest_document(
     )
 
     db.add(version)
-    # flush() 会把 INSERT 发送给数据库，并取得自增的 version.id，但事务还没有最终提交，
-    # 所以这里需要先提交事务，才能使用 version.id
+    # flush是为了确保 version.id 被分配值
     db.flush()
 
-    # 当前版本先指向本次处理版本。
-    # 默认检索会在后续 T08 只使用 indexed 版本。
-    document.current_version_id = version.id
+    document_id = document.id
+    version_id = version.id
+    version_number = version.version_number
+
+    # 先提交 pending 版本。
+    # 这样后续 Embedding 或 Chroma 失败时，
+    # 仍然可以保留 failed 记录。
+    db.commit()
+
+    vector_ids: list[str] = []
 
     try:
-        # 解析文档内容
         parsed_document = parse_document(
             saved_file.storage_path,
             saved_file.file_type,
         )
 
-        #  切分 chunk
         chunks = split_text_by_sentence(
             parsed_document.text
         )
@@ -153,28 +190,121 @@ def ingest_document(
                 "Document produced no chunks"
             )
 
-        version.chunk_count = len(chunks)
+        # 生成文档块的向量表示
+        embeddings = embed_texts(chunks)
+        # 生成文档块的 vector_id
+        # 每个 vector_id 都是唯一的，用于后续的检索
+        vector_ids = [
+            build_vector_id(
+                knowledge_base_id=knowledge_base_id,
+                document_id=document_id,
+                version_id=version_id,
+                chunk_index=index,
+            )
+            for index in range(len(chunks))
+        ]
+        # 生成文档块的 metadata
+        metadatas = _build_chunk_metadata(
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            version_id=version_id,
+            version_number=version_number,
+            filename=saved_file.original_filename,
+            chunk_count=len(chunks),
+        )
+        # 把文档块、向量和 metadata 一起写入 Chroma
+        upsert_chunks(
+            knowledge_base_id=knowledge_base_id,
+            document_id=document_id,
+            version_id=version_id,
+            chunks=chunks,
+            embeddings=embeddings,
+            metadatas=metadatas,
+        )
+        # 把文档块写入 MySQL
+        db.add_all(
+            [
+                DocumentChunk(
+                    document_version_id=version_id,
+                    chunk_index=index,
+                    content=chunk,
+                    vector_id=vector_ids[index],
+                )
+                for index, chunk in enumerate(chunks)
+            ]
+        )
 
-        # T07 只完成解析和切分。
-        # 写入 Embedding/Chroma 后，T08 再更新为 indexed。
-        version.status = "pending"
-        version.error_message = None
+        current_version = db.get(
+            DocumentVersion,
+            version_id,
+        )
+        current_document = db.get(
+            Document,
+            document_id,
+        )
+
+        if current_version is None:
+            raise DocumentParseError(
+                "Document version disappeared"
+            )
+
+        if current_document is None:
+            raise DocumentParseError(
+                "Document disappeared"
+            )
+
+        current_version.chunk_count = len(chunks)
+        # 更新版本状态为 indexed
+        current_version.status = "indexed"
+        current_version.error_message = None
+        current_document.current_version_id = version_id
 
         db.commit()
+
+        return DocumentIngestionResult(
+            document=current_document,
+            version=current_version,
+            duplicate=False,
+        )
 
     except (
         DocumentParseError,
         InvalidChunkConfigError,
+        EmbeddingError,
+        VectorStoreError,
     ) as error:
-        # 保留失败版本，便于之后查询失败原因和重新处理。
-        version.status = "failed"
-        version.error_message = str(error)[:2000]
-        version.chunk_count = 0
+        db.rollback()
 
-        db.commit()
+        # MySQL 和 Chroma 不是同一个事务系统。
+        # MySQL 失败时，要删除已经写入的向量。
+        if vector_ids:
+            try:
+                delete_vectors(vector_ids)
+            except VectorStoreError:
+                # 保留主失败状态，清理失败留给日志和后续补偿。
+                pass
 
-    return DocumentIngestionResult(
-        document=document,
-        version=version,
-        duplicate=False,
-    )
+        failed_version = db.get(
+            DocumentVersion,
+            version_id,
+        )
+        # 失败补偿,更新版本状态为 failed
+        if failed_version is not None:
+            failed_version.status = "failed"
+            failed_version.error_message = str(error)[:2000]
+            failed_version.chunk_count = 0
+            db.commit()
+
+        failed_document = db.get(
+            Document,
+            document_id,
+        )
+
+        if failed_document is None:
+            raise
+
+        return DocumentIngestionResult(
+            document=failed_document,
+            version=failed_version,
+            duplicate=False,
+        )
