@@ -26,10 +26,12 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T04：用户注册、登录、密码哈希、JWT 签发与当前用户鉴权。
 - T05：知识库 CRUD、`owner_id` 所有者绑定和跨用户权限校验。
 - T06：文件上传安全校验、原始文件保存和 SHA-256 指纹计算。
+- T07：TXT/Markdown/PDF 文档解析、文本切分、逻辑文档与版本管理、重复内容幂等和失败状态保留。
+- T08：本地 BGE Embedding、Chroma 向量入库、chunk metadata、稳定 `vector_id` 和失败补偿。
+- T09：文档列表、详情、版本历史、单版本查询、文档删除和失败版本重新索引。
 
 下一步：
 
-- T07-T09：文档解析、版本管理、Embedding 和 Chroma 入库；
 - T10-T13：RAG 检索、DeepSeek 调用、问答 SSE 和故障分析；
 - T14-T15：Vue 联调、测试和交付材料。
 
@@ -202,7 +204,26 @@ T06 当前已完成原始文件的安全保存：
 - 上传失败时清理半成品；
 - 上传前校验当前用户是否拥有目标知识库。
 
-当前响应中的 `status=uploaded` 只表示原始文件已保存成功。文档解析、文本切分、`pending/indexed/failed` 版本状态、Embedding 和 Chroma 入库将在 T07、T08 实现。
+上传接口会继续执行文档解析、文本切分、版本状态更新、Embedding 和 Chroma 入库；成功版本为 `indexed`，处理失败会保留 `failed` 版本和错误信息。
+
+## 当前文档管理接口（T09）
+
+所有接口都需要携带：
+
+```text
+Authorization: Bearer <access_token>
+```
+
+- `GET /api/v1/knowledge-bases/{knowledge_base_id}/documents`：分页查询知识库文档，可按 `status=pending|indexed|failed` 筛选；
+- `GET /api/v1/knowledge-bases/{knowledge_base_id}/documents/{document_id}`：查询文档详情和当前版本；
+- `GET /api/v1/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions`：查询版本历史；
+- `GET /api/v1/knowledge-bases/{knowledge_base_id}/documents/{document_id}/versions/{version_id}`：查询指定版本；
+- `DELETE /api/v1/knowledge-bases/{knowledge_base_id}/documents/{document_id}`：删除文档、版本、chunk、原始文件和向量；
+- `POST /api/v1/knowledge-bases/{knowledge_base_id}/documents/{document_id}/reindex`：重新处理该文档最新的 `failed` 版本。
+
+路径中的 ID 含义：`knowledge_base_id` 是知识库 ID，`document_id` 是逻辑文档 ID，`version_id` 是 `document_versions.id` 的版本记录主键；`version_number` 只是同一逻辑文档内的版本序号，不能替代 `version_id`。
+
+T09 的删除顺序为先清理 Chroma 向量，再删除原始文件，最后删除 MySQL 业务记录，避免数据库删除后丢失向量清理所需的 `vector_id`。没有 `failed` 版本时调用重新索引接口返回 `409 Conflict` 属于正常业务结果。
 
 ## Git 提交约定
 

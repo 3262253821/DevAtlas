@@ -171,6 +171,7 @@ def ingest_document(
     # 先提交 pending 版本。
     # 这样后续 Embedding 或 Chroma 失败时，
     # 仍然可以保留 failed 记录。
+    document.current_version_id = version.id
     db.commit()
 
     vector_ids: list[str] = []
