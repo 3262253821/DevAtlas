@@ -31,10 +31,11 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T09：文档列表、详情、版本历史、单版本查询、文档删除和失败版本重新索引。
 - T10：问题 Embedding、当前知识库 indexed 版本过滤、Chroma Top-K 检索、上下文组装和来源 metadata 返回。
 - T11：DeepSeek 普通调用、RAG Prompt、统一 LLM 错误转换和带来源的普通问答接口。
+- T12：知识库问答 SSE 流式输出、token/citation/done/error 事件和 DeepSeek 流式调用。
 
 下一步：
 
-- T12-T13：问答 SSE、故障分析和 incident 记录；
+- T13：故障分析和 incident 记录；
 - T14-T15：Vue 联调、测试和交付材料。
 
 ## 项目结构
@@ -272,6 +273,41 @@ POST /api/v1/knowledge-bases/{knowledge_base_id}/qa
 - `sources`：T10 返回的文档、版本、chunk 和距离信息。
 
 如果没有检索到来源，接口不会调用大模型，而是返回知识库没有相关内容的提示。DeepSeek 配置缺失、网络失败、超时或返回异常时统一返回 `502 Bad Gateway`。T11 只返回完整 JSON，流式输出留给 T12。
+
+## 当前知识库问答 SSE 接口（T12）
+
+```text
+POST /api/v1/knowledge-bases/{knowledge_base_id}/qa/stream
+```
+
+请求体：
+
+```json
+{
+  "question": "你的文档中写的主要内容是什么？",
+  "top_k": 3,
+  "conversation_id": null
+}
+```
+
+接口复用 T10 的检索和 T11 的 RAG Prompt，通过 DeepSeek 流式调用逐段返回回答。事件顺序通常为：多个 `token`，随后多个 `citation`，最后是 `done`。流式调用中发生错误时发送 `error` 事件。
+
+事件示例：
+
+```text
+event: token
+data: {"text":"回答片段"}
+
+event: citation
+data: {"index":1,"document_id":2,"version_id":2,"chunk_index":29,"filename":"文档.txt","distance":0.55}
+
+event: done
+data: {"conversation_id":null,"message_id":null}
+```
+
+`top_k` 表示最多检索多少个最相似文档块，不限制最终回答长度。当前阶段暂不保存问答历史，因此 `conversation_id` 和 `message_id` 仅保留接口结构，值可以为 `null`。
+
+T12 使用 OpenAI 兼容客户端处理 DeepSeek SSE 响应，避免手写解析空行和事件边界导致流式解析失败。已验证：合法请求能够返回 `token → citation → done`；无相关文档时返回提示 token 和 `done`；未登录返回 `401`；跨用户知识库返回 `404`；参数不合法返回 `422`。
 
 ## Git 提交约定
 

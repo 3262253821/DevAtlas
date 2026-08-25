@@ -1,5 +1,6 @@
-from typing import Any
+from typing import Any, Iterator
 
+from openai import OpenAI
 import requests
 
 from app.core.config import settings
@@ -140,3 +141,62 @@ def chat_with_llm(
         )
 
     return content.strip()
+
+
+# 流式调用函数
+def stream_chat_with_llm(
+    messages: list[dict[str, str]],
+) -> Iterator[str]:
+    """
+    通过 OpenAI 兼容客户端调用 DeepSeek 流式接口。
+    客户端负责解析 SSE 边界，只返回回答文本片段。
+    """
+    try:
+        settings.require(
+            "deepseek_api_key",
+            "deepseek_base_url",
+            "deepseek_model",
+        )
+    except RuntimeError as error:
+        raise LLMServiceError(
+            "DeepSeek configuration is incomplete"
+        ) from error
+
+    try:
+        client = OpenAI(
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+            timeout=120.0,
+        )
+
+        stream = client.chat.completions.create(
+            model=settings.deepseek_model,
+            messages=messages,
+            temperature=0.2,
+            stream=True,
+        )
+
+        has_content = False
+
+        for chunk in stream:
+            if not chunk.choices:
+                continue
+
+            content = chunk.choices[0].delta.content
+
+            if isinstance(content, str) and content:
+                has_content = True
+                yield content
+
+        if not has_content:
+            raise LLMServiceError(
+                "DeepSeek returned an empty stream"
+            )
+
+    except LLMServiceError:
+        raise
+
+    except Exception as error:
+        raise LLMServiceError(
+            "DeepSeek stream request failed"
+        ) from error

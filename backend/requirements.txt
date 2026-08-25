@@ -10,4 +10,5 @@ python-multipart
 pypdf
 sentence-transformers
 chromadb
+openai
 requests
