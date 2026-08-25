@@ -29,10 +29,11 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T07：TXT/Markdown/PDF 文档解析、文本切分、逻辑文档与版本管理、重复内容幂等和失败状态保留。
 - T08：本地 BGE Embedding、Chroma 向量入库、chunk metadata、稳定 `vector_id` 和失败补偿。
 - T09：文档列表、详情、版本历史、单版本查询、文档删除和失败版本重新索引。
+- T10：问题 Embedding、当前知识库 indexed 版本过滤、Chroma Top-K 检索、上下文组装和来源 metadata 返回。
 
 下一步：
 
-- T10-T13：RAG 检索、DeepSeek 调用、问答 SSE 和故障分析；
+- T11-T13：DeepSeek 调用、RAG Prompt、问答 SSE 和故障分析；
 - T14-T15：Vue 联调、测试和交付材料。
 
 ## 项目结构
@@ -224,6 +225,27 @@ Authorization: Bearer <access_token>
 路径中的 ID 含义：`knowledge_base_id` 是知识库 ID，`document_id` 是逻辑文档 ID，`version_id` 是 `document_versions.id` 的版本记录主键；`version_number` 只是同一逻辑文档内的版本序号，不能替代 `version_id`。
 
 T09 的删除顺序为先清理 Chroma 向量，再删除原始文件，最后删除 MySQL 业务记录，避免数据库删除后丢失向量清理所需的 `vector_id`。没有 `failed` 版本时调用重新索引接口返回 `409 Conflict` 属于正常业务结果。
+
+## 当前 RAG 检索接口（T10）
+
+```text
+POST /api/v1/knowledge-bases/{knowledge_base_id}/search
+```
+
+请求体：
+
+```json
+{
+  "question": "忘记密码后应该怎么办？",
+  "top_k": 3
+}
+```
+
+检索流程为：先校验当前用户是否拥有知识库，再从 MySQL 找出该知识库中状态为 `indexed` 的版本，将问题转换为 Embedding，使用知识库 ID、版本 ID 和 `is_searchable=true` 作为 Chroma metadata 过滤条件，最后返回距离最小的 Top-K 文档块。
+
+接口返回 `context` 和 `sources`，其中 `context` 是检索到的原文拼接结果，`sources` 包含文档 ID、版本 ID、版本号、chunk 序号、文件名和距离。T10 只负责检索，不负责调用 DeepSeek 生成最终答案。
+
+已验证：合法 Token 和知识库可以返回文档块及来源 metadata；没有可检索版本时返回空上下文；跨用户知识库返回 `404`；无 Token 返回 `401`；`top_k` 超出 1-10 范围返回 `422`。
 
 ## Git 提交约定
 
