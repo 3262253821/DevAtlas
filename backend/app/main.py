@@ -6,6 +6,7 @@ from app.routers.auth import router as auth_router
 from app.routers.knowledge_base import router as knowledge_base_router
 from app.routers.documents import router as documents_router
 from app.routers.retrieval import router as retrieval_router
+from app.routers.qa import router as qa_router
 
 app = FastAPI(
     title="DevAtlas API",
@@ -16,6 +17,7 @@ app.include_router(auth_router)
 app.include_router(knowledge_base_router)
 app.include_router(documents_router)
 app.include_router(retrieval_router)
+app.include_router(qa_router)
 
 @app.get("/health")
 def health_check() -> dict[str, str]:

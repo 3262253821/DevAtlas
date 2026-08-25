@@ -30,10 +30,11 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T08：本地 BGE Embedding、Chroma 向量入库、chunk metadata、稳定 `vector_id` 和失败补偿。
 - T09：文档列表、详情、版本历史、单版本查询、文档删除和失败版本重新索引。
 - T10：问题 Embedding、当前知识库 indexed 版本过滤、Chroma Top-K 检索、上下文组装和来源 metadata 返回。
+- T11：DeepSeek 普通调用、RAG Prompt、统一 LLM 错误转换和带来源的普通问答接口。
 
 下一步：
 
-- T11-T13：DeepSeek 调用、RAG Prompt、问答 SSE 和故障分析；
+- T12-T13：问答 SSE、故障分析和 incident 记录；
 - T14-T15：Vue 联调、测试和交付材料。
 
 ## 项目结构
@@ -246,6 +247,31 @@ POST /api/v1/knowledge-bases/{knowledge_base_id}/search
 接口返回 `context` 和 `sources`，其中 `context` 是检索到的原文拼接结果，`sources` 包含文档 ID、版本 ID、版本号、chunk 序号、文件名和距离。T10 只负责检索，不负责调用 DeepSeek 生成最终答案。
 
 已验证：合法 Token 和知识库可以返回文档块及来源 metadata；没有可检索版本时返回空上下文；跨用户知识库返回 `404`；无 Token 返回 `401`；`top_k` 超出 1-10 范围返回 `422`。
+
+## 当前普通问答接口（T11）
+
+```text
+POST /api/v1/knowledge-bases/{knowledge_base_id}/qa
+```
+
+请求体：
+
+```json
+{
+  "question": "你的文档中写的主要内容是什么？",
+  "top_k": 3
+}
+```
+
+接口先复用 T10 检索当前知识库的相关文档块，再把问题和上下文组装成 RAG Prompt，调用 DeepSeek `deepseek-v4-flash`，最后返回普通 JSON。
+
+返回结构包含：
+
+- `question`：用户问题；
+- `answer`：DeepSeek 根据上下文生成的回答；
+- `sources`：T10 返回的文档、版本、chunk 和距离信息。
+
+如果没有检索到来源，接口不会调用大模型，而是返回知识库没有相关内容的提示。DeepSeek 配置缺失、网络失败、超时或返回异常时统一返回 `502 Bad Gateway`。T11 只返回完整 JSON，流式输出留给 T12。
 
 ## Git 提交约定
 
