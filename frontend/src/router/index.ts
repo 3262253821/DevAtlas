@@ -4,7 +4,10 @@ import {
   type RouteRecordRaw,
 } from "vue-router";
 import { useAuthStore } from "../stores/auth";
-import RoutePlaceholder from "../views/RoutePlaceholder.vue";
+import LoginView from "../views/LoginView.vue";
+import RegisterView from "../views/RegisterView.vue";
+import WorkspacesView from "../views/WorkspacesView.vue";
+import KnowledgeWorkspaceView from "../views/KnowledgeWorkspaceView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -14,26 +17,17 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/login",
     name: "login",
-    component: RoutePlaceholder,
-    props: {
-      title: "登录页（T14-B 实现）",
-    },
+    component: LoginView,
   },
   {
     path: "/register",
     name: "register",
-    component: RoutePlaceholder,
-    props: {
-      title: "注册页（T14-B 实现）",
-    },
+    component: RegisterView,
   },
   {
     path: "/workspaces",
     name: "workspaces",
-    component: RoutePlaceholder,
-    props: {
-      title: "知识库列表（T14-C 实现）",
-    },
+    component: WorkspacesView,
     meta: {
       requiresAuth: true,
     },
@@ -41,10 +35,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/knowledge/:id",
     name: "knowledge",
-    component: RoutePlaceholder,
-    props: {
-      title: "知识库工作台（T14-C 实现）",
-    },
+    component: KnowledgeWorkspaceView,
     meta: {
       requiresAuth: true,
     },
