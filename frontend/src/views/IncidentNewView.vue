@@ -18,13 +18,18 @@ const knowledgeBaseId = computed(() => {
   return Number(route.params.id);
 });
 
+function stop(): void {
+  controller?.abort();
+  controller = null;
+  loading.value = false;
+}
 async function submit(): Promise<void> {
   if (!title.value.trim() || !content.value.trim()) {
     ElMessage.warning("请填写故障标题和故障内容");
     return;
   }
 
-  controller?.abort();
+  stop();
   controller = new AbortController();
 
   result.value = "";
@@ -106,6 +111,8 @@ async function submit(): Promise<void> {
         <el-button type="primary" :loading="loading" @click="submit">
           开始分析
         </el-button>
+
+        <el-button v-if="loading" @click="stop"> 停止 </el-button>
       </el-form>
     </section>
 

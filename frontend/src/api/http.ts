@@ -31,6 +31,18 @@ http.interceptors.response.use(
       localStorage.removeItem("dev_atlas_user");
     }
 
+    const isPublicPage =
+      window.location.pathname === "/login" ||
+      window.location.pathname === "/register";
+
+    if (!isPublicPage) {
+      const redirect = encodeURIComponent(
+        `${window.location.pathname}${window.location.search}`,
+      );
+
+      window.location.assign(`/login?redirect=${redirect}`);
+    }
+
     return Promise.reject(error);
   },
 );

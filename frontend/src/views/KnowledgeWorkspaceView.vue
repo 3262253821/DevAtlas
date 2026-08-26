@@ -68,58 +68,55 @@ onMounted(loadWorkspace);
     </header>
 
     <section v-if="workspace" class="feature-grid">
-      <el-card>
+      <el-card class="feature-card">
         <h2>文档管理</h2>
         <p>上传、解析和查看知识库文档。</p>
-        <el-tag type="info">T14-D 开发</el-tag>
+
+        <el-button
+          type="primary"
+          @click="
+            router.push({
+              name: 'documents',
+              params: { id: workspace.id },
+            })
+          "
+        >
+          打开文档管理
+        </el-button>
       </el-card>
 
-      <el-button
-        type="primary"
-        @click="
-          router.push({
-            name: 'documents',
-            params: { id: workspace.id },
-          })
-        "
-      >
-        打开文档管理
-      </el-button>
-
-      <el-button
-        type="primary"
-        @click="
-          router.push({
-            name: 'qa',
-            params: { id: workspace.id },
-          })
-        "
-      >
-        开始问答
-      </el-button>
-
-      <el-button
-        type="primary"
-        @click="
-          router.push({
-            name: 'incident-new',
-            params: { id: workspace.id },
-          })
-        "
-      >
-        创建分析
-      </el-button>
-
-      <el-card>
+      <el-card class="feature-card">
         <h2>知识库问答</h2>
         <p>基于 RAG 检索知识库内容并流式回答。</p>
-        <el-tag type="info">T14-E 开发</el-tag>
+
+        <el-button
+          type="primary"
+          @click="
+            router.push({
+              name: 'qa',
+              params: { id: workspace.id },
+            })
+          "
+        >
+          开始问答
+        </el-button>
       </el-card>
 
-      <el-card>
+      <el-card class="feature-card">
         <h2>故障分析</h2>
         <p>结合研发知识进行故障排查和分析。</p>
-        <el-tag type="info">T14-E 开发</el-tag>
+
+        <el-button
+          type="primary"
+          @click="
+            router.push({
+              name: 'incident-new',
+              params: { id: workspace.id },
+            })
+          "
+        >
+          创建分析
+        </el-button>
       </el-card>
     </section>
   </main>
@@ -185,5 +182,13 @@ onMounted(loadWorkspace);
   .feature-grid {
     grid-template-columns: 1fr;
   }
+}
+.feature-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.feature-card p {
+  flex: 1;
 }
 </style>
