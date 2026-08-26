@@ -14,6 +14,7 @@ env/
 .env
 .env.*
 !.env.example
+.env.local
 
 # FastAPI uploads and generated data
 uploads/

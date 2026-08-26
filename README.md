@@ -33,10 +33,10 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T11：DeepSeek 普通调用、RAG Prompt、统一 LLM 错误转换和带来源的普通问答接口。
 - T12：知识库问答 SSE 流式输出、token/citation/done/error 事件和 DeepSeek 流式调用。
 - T13：故障分析 SSE、incidents/incident_citations 持久化、状态流转、历史查询、详情和删除。
+- T14：Vue 前端基础设施、登录注册、知识库工作台、文档管理、普通问答 SSE、故障分析 SSE 和浏览器端完整联调。
 
 下一步：
 
-- T14：Vue 页面和前后端联调；
 - T15：测试、修复和交付材料。
 
 ## 项目结构
@@ -54,6 +54,11 @@ E:\RagKnowledgeSystem
 │   ├── alembic           # 数据库迁移配置和版本
 │   └── requirements.txt
 ├── frontend              # Vue + TypeScript 前端
+│   └── src
+│       ├── api           # Axios、SSE 和业务接口封装
+│       ├── router        # 页面路由和登录守卫
+│       ├── stores        # Pinia 登录状态
+│       └── views         # 登录、知识库、文档、问答和故障页面
 ├── docs                  # PRD、技术方案、API 和阶段总结
 ├── tests                 # 自动化测试
 └── others                # 本地生成文件，不放业务源码
@@ -111,6 +116,29 @@ npm run dev -- --host 127.0.0.1 --port 5173
 ```text
 http://127.0.0.1:5173
 ```
+
+前端通过 `frontend/.env.local` 中的 `VITE_API_BASE_URL` 请求后端，默认后端端口为 `8000`。该文件只保存本地地址，不提交到 Git。
+
+## 当前前端联调功能（T14）
+
+已完成浏览器主链路：
+
+```text
+注册 → 登录 → 创建知识库 → 上传文档 → indexed
+→ RAG 问答 SSE → 故障分析 SSE → 查看历史 → 删除记录 → 退出登录
+```
+
+主要页面：
+
+- `/login`、`/register`：登录和注册；
+- `/workspaces`：当前用户知识库列表、创建和删除；
+- `/knowledge/:id`：知识库工作台；
+- `/knowledge/:id/documents`：文档上传、状态、删除和重新索引；
+- `/knowledge/:id/qa`：普通问答 SSE 和引用展示；
+- `/knowledge/:id/incidents/new`：故障分析 SSE；
+- `/incidents`：故障分析历史、详情和删除。
+
+前端使用 Axios 统一携带 JWT，使用 `fetch + ReadableStream` 解析 SSE 的 `token`、`citation`、`done` 和 `error` 事件。后端通过 CORS 允许本地 `5173` 前端访问 `8000` API。
 
 ## 数据库迁移
 
