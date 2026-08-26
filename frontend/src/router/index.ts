@@ -9,6 +9,9 @@ import RegisterView from "../views/RegisterView.vue";
 import WorkspacesView from "../views/WorkspacesView.vue";
 import KnowledgeWorkspaceView from "../views/KnowledgeWorkspaceView.vue";
 import DocumentsView from "../views/DocumentsView.vue";
+import QaView from "../views/QaView.vue";
+import IncidentNewView from "../views/IncidentNewView.vue";
+import IncidentsView from "../views/IncidentsView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -45,6 +48,30 @@ const routes: RouteRecordRaw[] = [
     path: "/knowledge/:id/documents",
     name: "documents",
     component: DocumentsView,
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/knowledge/:id/qa",
+    name: "qa",
+    component: QaView,
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/knowledge/:id/incidents/new",
+    name: "incident-new",
+    component: IncidentNewView,
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/incidents",
+    name: "incidents",
+    component: IncidentsView,
     meta: {
       requiresAuth: true,
     },

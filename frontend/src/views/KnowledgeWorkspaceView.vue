@@ -86,6 +86,30 @@ onMounted(loadWorkspace);
         打开文档管理
       </el-button>
 
+      <el-button
+        type="primary"
+        @click="
+          router.push({
+            name: 'qa',
+            params: { id: workspace.id },
+          })
+        "
+      >
+        开始问答
+      </el-button>
+
+      <el-button
+        type="primary"
+        @click="
+          router.push({
+            name: 'incident-new',
+            params: { id: workspace.id },
+          })
+        "
+      >
+        创建分析
+      </el-button>
+
       <el-card>
         <h2>知识库问答</h2>
         <p>基于 RAG 检索知识库内容并流式回答。</p>
