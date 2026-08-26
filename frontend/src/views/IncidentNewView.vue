@@ -131,42 +131,90 @@ async function submit(): Promise<void> {
 <style scoped>
 .incident-page {
   min-height: 100vh;
-  padding: 40px;
-  background: #f4f6f8;
+  padding: 46px 44px 84px;
+  background: var(--paper);
   box-sizing: border-box;
 }
 
 .page-header,
 .incident-form,
 .result-card {
-  max-width: 1000px;
+  max-width: 1060px;
   margin-left: auto;
   margin-right: auto;
 }
 
 .page-header h1 {
-  margin: 28px 0 8px;
-  font-size: 32px;
+  margin: 22px 0 8px;
+  color: var(--ink-950);
+  font-size: clamp(30px, 4vw, 46px);
+  letter-spacing: -0.04em;
 }
 
 .page-header p {
-  color: #606266;
+  color: var(--ink-500);
+  font-size: 14px;
 }
 
 .incident-form {
   margin-top: 24px;
   padding: 24px;
-  background: #ffffff;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.incident-form :deep(.el-input__wrapper),
+.incident-form :deep(.el-textarea__inner) {
+  border: 1px solid var(--line);
   border-radius: 8px;
+  box-shadow: none;
+}
+
+.incident-form :deep(.el-textarea__inner) {
+  min-height: 220px !important;
+  line-height: 1.7;
+}
+
+.incident-form :deep(.el-button--primary) {
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink-950);
+  background: var(--amber);
+  font-weight: 700;
 }
 
 .result-card {
   margin-top: 20px;
+  border: 1px solid rgba(213, 138, 53, 0.34);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .result-content {
   white-space: pre-wrap;
+  color: var(--ink-700);
   line-height: 1.8;
+}
+
+.result-card :deep(.el-card__header) {
+  color: #8a551b;
+  font-weight: 700;
+  background: #fff5e5;
+  border-bottom-color: rgba(213, 138, 53, 0.24);
+}
+
+.incident-page :deep(.el-button.is-link) {
+  padding: 0;
+  color: var(--ink-500);
+}
+
+@media (max-width: 700px) {
+  .incident-page {
+    padding: 34px 16px 60px;
+  }
 }
 </style>

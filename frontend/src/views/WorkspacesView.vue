@@ -205,37 +205,126 @@ onMounted(loadWorkspaces);
 <style scoped>
 .workspace-page {
   min-height: 100vh;
-  padding: 40px;
-  background: #f4f6f8;
+  padding: 58px 44px 84px;
+  background: var(--paper);
   box-sizing: border-box;
 }
 
 .page-header {
-  max-width: 1180px;
+  max-width: 1160px;
   margin: 0 auto 24px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
 }
 
 .eyebrow {
   margin: 0 0 8px;
-  color: #409eff;
+  color: var(--teal-dark);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.14em;
 }
 
 .page-header h1 {
   margin: 0 0 8px;
-  font-size: 32px;
+  color: var(--ink-950);
+  font-size: clamp(30px, 4vw, 46px);
+  letter-spacing: -0.04em;
 }
 
 .description {
-  color: #606266;
+  color: var(--ink-500);
+  font-size: 14px;
 }
 
 .workspace-card {
-  max-width: 1180px;
+  max-width: 1160px;
   margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.workspace-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.workspace-card :deep(.el-table) {
+  --el-table-header-bg-color: #f5f1e8;
+  --el-table-row-hover-bg-color: #f1f8f5;
+  --el-table-border-color: var(--line);
+  color: var(--ink-700);
+}
+
+.workspace-card :deep(.el-table th.el-table__cell) {
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-card :deep(.el-table td.el-table__cell),
+.workspace-card :deep(.el-table th.el-table__cell) {
+  padding: 18px 16px;
+}
+
+.workspace-card :deep(.el-table .cell) {
+  line-height: 1.5;
+}
+
+.workspace-card :deep(.el-empty) {
+  padding: 88px 24px;
+}
+
+.workspace-page :deep(.el-button--primary) {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink-950);
+  background: var(--teal);
+  font-weight: 700;
+}
+
+.workspace-page :deep(.el-button--primary:hover) {
+  background: #2aaf99;
+}
+
+.workspace-page :deep(.el-dialog) {
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.workspace-page :deep(.el-dialog__title) {
+  color: var(--ink-950);
+  font-weight: 700;
+}
+
+.workspace-page :deep(.el-input__wrapper),
+.workspace-page :deep(.el-textarea__inner) {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .workspace-page {
+    padding: 36px 16px 60px;
+  }
+
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .page-header :deep(.el-button) {
+    width: 100%;
+  }
 }
 </style>

@@ -62,89 +62,72 @@ async function submit(): Promise<void> {
 
 <template>
   <main class="auth-page">
-    <section class="auth-panel">
-      <p class="auth-brand">DevAtlas</p>
-      <h1>登录</h1>
-      <p class="auth-description">登录后进入你的研发知识工作区</p>
+    <section class="auth-story">
+      <div class="story-grid" aria-hidden="true"></div>
+      <div class="story-content">
+        <div class="story-brand">
+          <span class="brand-mark">D</span>
+          <span>DEVATLAS / 01</span>
+        </div>
+        <p class="story-kicker">研发知识协同平台</p>
+        <h1>把团队经验，<br /><em>变成可检索的答案。</em></h1>
+        <p class="story-copy">
+          文档、故障日志与排查经验汇聚在同一个工作区，
+          让每一次定位都有来源可追溯。
+        </p>
+        <div class="story-footnote">
+          <span class="story-line"></span>
+          <span>SECURE KNOWLEDGE WORKSPACE</span>
+        </div>
+      </div>
+    </section>
 
-      <el-form :model="form" @submit.prevent="submit">
-        <el-form-item label="用户名">
-          <el-input
-            v-model="form.username"
-            autocomplete="username"
-            placeholder="请输入用户名"
-          />
-        </el-form-item>
+    <section class="auth-form-area">
+      <div class="auth-form-wrap">
+        <div class="form-heading">
+          <p class="eyebrow">WELCOME BACK</p>
+          <h2>登录工作区</h2>
+          <p>使用你的 DevAtlas 账号继续工作。</p>
+        </div>
 
-        <el-form-item label="密码">
-          <el-input
-            v-model="form.password"
-            type="password"
-            show-password
-            autocomplete="current-password"
-            placeholder="请输入密码"
-          />
-        </el-form-item>
-
-        <el-button
-          class="auth-submit"
-          type="primary"
-          native-type="submit"
-          :loading="loading"
+        <el-form
+          class="auth-form"
+          :model="form"
+          @submit.prevent="submit"
         >
-          登录
-        </el-button>
-      </el-form>
+          <el-form-item label="用户名">
+            <el-input
+              v-model="form.username"
+              autocomplete="username"
+              placeholder="输入用户名"
+            />
+          </el-form-item>
 
-      <p class="auth-footer">
-        还没有账号？
-        <RouterLink to="/register"> 去注册 </RouterLink>
-      </p>
+          <el-form-item label="密码">
+            <el-input
+              v-model="form.password"
+              type="password"
+              show-password
+              autocomplete="current-password"
+              placeholder="输入密码"
+            />
+          </el-form-item>
+
+          <el-button
+            class="auth-submit"
+            type="primary"
+            native-type="submit"
+            :loading="loading"
+          >
+            进入工作区 <span aria-hidden="true">↗</span>
+          </el-button>
+        </el-form>
+
+        <p class="auth-footer">
+          还没有账号？
+          <RouterLink to="/register">创建一个</RouterLink>
+        </p>
+      </div>
     </section>
   </main>
 </template>
-
-<style scoped>
-.auth-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: #f4f6f8;
-}
-
-.auth-panel {
-  width: min(100%, 420px);
-  padding: 36px;
-  background: #ffffff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  box-sizing: border-box;
-}
-
-.auth-brand {
-  margin-bottom: 12px;
-  color: #409eff;
-  font-weight: 700;
-}
-
-.auth-panel h1 {
-  margin: 0 0 8px;
-  font-size: 30px;
-}
-
-.auth-description {
-  margin-bottom: 28px;
-  color: #606266;
-}
-
-.auth-submit {
-  width: 100%;
-}
-
-.auth-footer {
-  margin-top: 20px;
-  text-align: center;
-  color: #606266;
-}
-</style>

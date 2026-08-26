@@ -137,39 +137,94 @@ onMounted(loadIncidents);
 <style scoped>
 .incidents-page {
   min-height: 100vh;
-  padding: 40px;
-  background: #f4f6f8;
+  padding: 46px 44px 84px;
+  background: var(--paper);
   box-sizing: border-box;
 }
 
 .page-header,
 .incidents-card,
 .detail-card {
-  max-width: 1100px;
+  max-width: 1160px;
   margin-left: auto;
   margin-right: auto;
 }
 
 .page-header h1 {
   margin: 0 0 8px;
-  font-size: 32px;
+  color: var(--ink-950);
+  font-size: clamp(30px, 4vw, 46px);
+  letter-spacing: -0.04em;
 }
 
 .page-header p {
-  color: #606266;
+  color: var(--ink-500);
+  font-size: 14px;
 }
 
 .incidents-card {
   margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.incidents-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.incidents-card :deep(.el-table) {
+  --el-table-header-bg-color: #f5f1e8;
+  --el-table-row-hover-bg-color: #fff7e9;
+  --el-table-border-color: var(--line);
+  color: var(--ink-700);
+}
+
+.incidents-card :deep(.el-table th.el-table__cell) {
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.incidents-card :deep(.el-table td.el-table__cell),
+.incidents-card :deep(.el-table th.el-table__cell) {
+  padding: 18px 16px;
 }
 
 .detail-card {
   margin-top: 20px;
+  border: 1px solid rgba(213, 138, 53, 0.34);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.detail-card :deep(.el-card__header) {
+  color: #8a551b;
+  font-weight: 700;
+  background: #fff5e5;
+  border-bottom-color: rgba(213, 138, 53, 0.24);
 }
 
 pre,
 .result-content {
+  margin: 0;
+  color: var(--ink-700);
   white-space: pre-wrap;
   line-height: 1.8;
+}
+
+.incidents-page :deep(.el-button.is-link) {
+  padding: 0;
+}
+
+@media (max-width: 700px) {
+  .incidents-page {
+    padding: 34px 16px 60px;
+  }
 }
 </style>

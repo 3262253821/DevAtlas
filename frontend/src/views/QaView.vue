@@ -160,8 +160,8 @@ async function submit(): Promise<void> {
 <style scoped>
 .qa-page {
   min-height: 100vh;
-  padding: 40px;
-  background: #f4f6f8;
+  padding: 46px 44px 84px;
+  background: var(--paper);
   box-sizing: border-box;
 }
 
@@ -169,26 +169,30 @@ async function submit(): Promise<void> {
 .qa-panel,
 .answer-card,
 .citation-card {
-  max-width: 1000px;
+  max-width: 1060px;
   margin-left: auto;
   margin-right: auto;
 }
 
 .page-header h1 {
-  margin: 28px 0 8px;
-  font-size: 32px;
+  margin: 22px 0 8px;
+  color: var(--ink-950);
+  font-size: clamp(30px, 4vw, 46px);
+  letter-spacing: -0.04em;
 }
 
 .page-header p {
-  color: #606266;
+  color: var(--ink-500);
+  font-size: 14px;
 }
 
 .qa-panel {
   margin-top: 24px;
   padding: 24px;
-  background: #ffffff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .qa-actions {
@@ -198,13 +202,77 @@ async function submit(): Promise<void> {
   margin-top: 16px;
 }
 
+.qa-panel :deep(.el-textarea__inner) {
+  min-height: 150px !important;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: none;
+  color: var(--ink-900);
+  background: #fbfaf5;
+  line-height: 1.7;
+}
+
+.qa-panel :deep(.el-input-number) {
+  width: 132px;
+}
+
+.qa-panel :deep(.el-button--primary) {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink-950);
+  background: var(--teal);
+  font-weight: 700;
+}
+
 .answer-card,
 .citation-card {
   margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .answer-content {
+  min-height: 120px;
   white-space: pre-wrap;
+  color: var(--ink-700);
   line-height: 1.8;
+}
+
+.answer-card :deep(.el-card__header),
+.citation-card :deep(.el-card__header) {
+  color: var(--ink-950);
+  font-weight: 700;
+  background: #f5f1e8;
+  border-bottom-color: var(--line);
+}
+
+.citation-card :deep(.el-table) {
+  --el-table-header-bg-color: #fbfaf5;
+  --el-table-border-color: var(--line);
+}
+
+.qa-page :deep(.el-button.is-link) {
+  padding: 0;
+  color: var(--ink-500);
+}
+
+@media (max-width: 700px) {
+  .qa-page {
+    padding: 34px 16px 60px;
+  }
+
+  .qa-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .qa-panel :deep(.el-input-number),
+  .qa-actions :deep(.el-button) {
+    width: 100%;
+  }
 }
 </style>

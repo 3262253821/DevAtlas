@@ -244,31 +244,102 @@ onMounted(loadDocuments);
 <style scoped>
 .documents-page {
   min-height: 100vh;
-  padding: 40px;
-  background: #f4f6f8;
+  padding: 46px 44px 84px;
+  background: var(--paper);
   box-sizing: border-box;
 }
 
 .page-header {
-  max-width: 1180px;
-  margin: 0 auto 24px;
+  max-width: 1160px;
+  margin: 0 auto 26px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
 }
 
 .page-header h1 {
-  margin: 28px 0 8px;
-  font-size: 32px;
+  margin: 22px 0 8px;
+  color: var(--ink-950);
+  font-size: clamp(30px, 4vw, 46px);
+  letter-spacing: -0.04em;
 }
 
 .page-header p {
-  color: #606266;
+  color: var(--ink-500);
+  font-size: 14px;
 }
 
 .documents-card {
-  max-width: 1180px;
+  max-width: 1160px;
   margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.documents-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.documents-card :deep(.el-table) {
+  --el-table-header-bg-color: #f5f1e8;
+  --el-table-row-hover-bg-color: #f1f8f5;
+  --el-table-border-color: var(--line);
+  color: var(--ink-700);
+}
+
+.documents-card :deep(.el-table th.el-table__cell) {
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.documents-card :deep(.el-table td.el-table__cell),
+.documents-card :deep(.el-table th.el-table__cell) {
+  padding: 17px 14px;
+}
+
+.documents-card :deep(.el-empty) {
+  padding: 88px 24px;
+}
+
+.documents-page :deep(.el-button--primary) {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink-950);
+  background: var(--teal);
+  font-weight: 700;
+}
+
+.documents-page :deep(.el-button--primary:hover) {
+  background: #2aaf99;
+}
+
+.documents-page :deep(.el-button.is-link) {
+  padding: 0;
+  color: var(--ink-500);
+}
+
+@media (max-width: 760px) {
+  .documents-page {
+    padding: 34px 16px 60px;
+  }
+
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .page-header > div:last-child,
+  .page-header > div:last-child :deep(.el-button) {
+    width: 100%;
+  }
 }
 </style>
