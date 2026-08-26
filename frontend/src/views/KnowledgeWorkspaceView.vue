@@ -74,6 +74,18 @@ onMounted(loadWorkspace);
         <el-tag type="info">T14-D 开发</el-tag>
       </el-card>
 
+      <el-button
+        type="primary"
+        @click="
+          router.push({
+            name: 'documents',
+            params: { id: workspace.id },
+          })
+        "
+      >
+        打开文档管理
+      </el-button>
+
       <el-card>
         <h2>知识库问答</h2>
         <p>基于 RAG 检索知识库内容并流式回答。</p>

@@ -8,6 +8,7 @@ import LoginView from "../views/LoginView.vue";
 import RegisterView from "../views/RegisterView.vue";
 import WorkspacesView from "../views/WorkspacesView.vue";
 import KnowledgeWorkspaceView from "../views/KnowledgeWorkspaceView.vue";
+import DocumentsView from "../views/DocumentsView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -36,6 +37,14 @@ const routes: RouteRecordRaw[] = [
     path: "/knowledge/:id",
     name: "knowledge",
     component: KnowledgeWorkspaceView,
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/knowledge/:id/documents",
+    name: "documents",
+    component: DocumentsView,
     meta: {
       requiresAuth: true,
     },
