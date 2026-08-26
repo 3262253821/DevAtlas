@@ -32,11 +32,12 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T10：问题 Embedding、当前知识库 indexed 版本过滤、Chroma Top-K 检索、上下文组装和来源 metadata 返回。
 - T11：DeepSeek 普通调用、RAG Prompt、统一 LLM 错误转换和带来源的普通问答接口。
 - T12：知识库问答 SSE 流式输出、token/citation/done/error 事件和 DeepSeek 流式调用。
+- T13：故障分析 SSE、incidents/incident_citations 持久化、状态流转、历史查询、详情和删除。
 
 下一步：
 
-- T13：故障分析和 incident 记录；
-- T14-T15：Vue 联调、测试和交付材料。
+- T14：Vue 页面和前后端联调；
+- T15：测试、修复和交付材料。
 
 ## 项目结构
 
@@ -308,6 +309,30 @@ data: {"conversation_id":null,"message_id":null}
 `top_k` 表示最多检索多少个最相似文档块，不限制最终回答长度。当前阶段暂不保存问答历史，因此 `conversation_id` 和 `message_id` 仅保留接口结构，值可以为 `null`。
 
 T12 使用 OpenAI 兼容客户端处理 DeepSeek SSE 响应，避免手写解析空行和事件边界导致流式解析失败。已验证：合法请求能够返回 `token → citation → done`；无相关文档时返回提示 token 和 `done`；未登录返回 `401`；跨用户知识库返回 `404`；参数不合法返回 `422`。
+
+## 当前故障分析接口（T13）
+
+故障分析使用独立的 incident 业务记录，不会把分析结果写回知识库文档。
+
+```text
+POST /api/v1/knowledge-bases/{knowledge_base_id}/incidents/stream
+GET /api/v1/incidents
+GET /api/v1/incidents/{incident_id}
+DELETE /api/v1/incidents/{incident_id}
+```
+
+故障分析请求：
+
+```json
+{
+  "title": "订单服务返回 502",
+  "content": "网关返回 502，订单服务无法连接数据库，请根据知识库给出排查步骤。"
+}
+```
+
+处理流程：创建 `streaming` incident → 复用 T10 检索故障相关文档块 → 使用故障专用 Prompt 调用 DeepSeek → SSE 返回 `token` 和 `citation` → 完成后保存分析结果和引用并更新为 `completed`。LLM 失败时更新为 `failed`，客户端中断时更新为 `cancelled`。
+
+T13 新增 P0 表 `incidents` 和 `incident_citations`。所有 incident 查询、详情和删除都按当前用户的 `owner_id` 过滤，其他用户访问统一返回 `404`。
 
 ## Git 提交约定
 
