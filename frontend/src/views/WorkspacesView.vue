@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { isAxiosError } from "axios";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
@@ -21,6 +21,22 @@ const creating = ref(false);
 const form = reactive<KnowledgeBaseCreate>({
   name: "",
   description: "",
+});
+
+const workspaceCount = computed(() => workspaces.value.length);
+
+const latestWorkspace = computed(() => {
+  return [...workspaces.value].sort(
+    (left, right) =>
+      new Date(right.updated_at).getTime() -
+      new Date(left.updated_at).getTime(),
+  )[0];
+});
+
+const latestWorkspaceDate = computed(() => {
+  return latestWorkspace.value
+    ? formatDate(latestWorkspace.value.updated_at)
+    : "暂无活动";
 });
 
 function errorMessage(error: unknown): string {
@@ -123,50 +139,122 @@ onMounted(loadWorkspaces);
   <main class="workspace-page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">DevAtlas</p>
+        <p class="eyebrow">DEVATLAS / WORKSPACE HOME</p>
         <h1>我的知识库</h1>
-        <p class="description">管理研发文档，并进入对应知识库工作台。</p>
+        <p class="description">集中管理研发资料，从一个工作区开始协作。</p>
       </div>
 
       <el-button type="primary" @click="openCreateDialog">
-        创建知识库
+        新建知识库
       </el-button>
     </header>
 
-    <el-card v-loading="loading" class="workspace-card">
-      <el-empty
-        v-if="!loading && workspaces.length === 0"
-        description="还没有知识库"
-      />
+    <section class="workspace-overview" aria-label="工作区概览">
+      <article class="overview-stat">
+        <span class="overview-label">知识库总数</span>
+        <strong>{{ workspaceCount }}</strong>
+        <span class="overview-note">当前账号可访问</span>
+      </article>
 
-      <el-table v-else :data="workspaces" row-key="id">
-        <el-table-column prop="name" label="名称" min-width="220" />
+      <article class="overview-stat overview-stat--accent">
+        <span class="overview-label">最近使用</span>
+        <strong>{{ latestWorkspace?.name || "暂无" }}</strong>
+        <span class="overview-note">{{ latestWorkspaceDate }}</span>
+      </article>
 
-        <el-table-column prop="description" label="描述" min-width="300">
-          <template #default="{ row }">
-            {{ row.description || "暂无描述" }}
-          </template>
-        </el-table-column>
+      <article class="overview-stat">
+        <span class="overview-label">下一步</span>
+        <strong>{{ latestWorkspace ? "继续工作" : "建立工作区" }}</strong>
+        <span class="overview-note">上传资料并开始问答</span>
+      </article>
+    </section>
 
-        <el-table-column label="创建时间" width="190">
-          <template #default="{ row }">
-            {{ formatDate(row.created_at) }}
-          </template>
-        </el-table-column>
+    <section class="workspace-home-grid">
+      <div class="workspace-list-column">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">YOUR KNOWLEDGE BASES</p>
+            <h2>全部知识库</h2>
+          </div>
+          <span class="section-count">{{ workspaceCount }} 个</span>
+        </div>
 
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openWorkspace(row)">
-              进入
-            </el-button>
+        <el-card v-loading="loading" class="workspace-card">
+          <el-empty
+            v-if="!loading && workspaces.length === 0"
+            description="还没有知识库，先创建一个工作区"
+          />
 
-            <el-button link type="danger" @click="removeWorkspace(row)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+          <el-table v-else :data="workspaces" row-key="id">
+            <el-table-column prop="name" label="名称" min-width="220" />
+
+            <el-table-column prop="description" label="描述" min-width="300">
+              <template #default="{ row }">
+                {{ row.description || "暂无描述" }}
+              </template>
+            </el-table-column>
+
+            <el-table-column label="最近更新" width="190">
+              <template #default="{ row }">
+                {{ formatDate(row.updated_at) }}
+              </template>
+            </el-table-column>
+
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openWorkspace(row)">
+                  进入工作台
+                </el-button>
+
+                <el-button link type="danger" @click="removeWorkspace(row)">
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </div>
+
+      <aside class="workspace-activity-panel">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">QUICK START</p>
+            <h2>快捷开始</h2>
+          </div>
+        </div>
+
+        <button
+          v-if="latestWorkspace"
+          class="quick-action quick-action--primary"
+          type="button"
+          @click="openWorkspace(latestWorkspace)"
+        >
+          <span class="quick-action-index">01</span>
+          <span class="quick-action-copy">
+            <strong>继续使用 {{ latestWorkspace.name }}</strong>
+            <small>进入工作台，继续问答或管理文档</small>
+          </span>
+          <span class="quick-action-arrow" aria-hidden="true">↗</span>
+        </button>
+
+        <button class="quick-action" type="button" @click="openCreateDialog">
+          <span class="quick-action-index">02</span>
+          <span class="quick-action-copy">
+            <strong>建立新的知识库</strong>
+            <small>为新的服务或团队整理独立资料</small>
+          </span>
+          <span class="quick-action-arrow" aria-hidden="true">＋</span>
+        </button>
+
+        <div class="activity-note">
+          <span class="activity-dot" aria-hidden="true"></span>
+          <div>
+            <strong>建议工作流</strong>
+            <p>创建知识库 → 上传文档 → 开始问答</p>
+          </div>
+        </div>
+      </aside>
+    </section>
 
     <el-dialog v-model="dialogVisible" title="创建知识库" width="460px">
       <el-form :model="form">
@@ -236,8 +324,83 @@ onMounted(loadWorkspaces);
 }
 
 .description {
+  margin: 0;
   color: var(--ink-500);
   font-size: 14px;
+}
+
+.workspace-overview {
+  max-width: 1160px;
+  margin: 0 auto 28px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.overview-stat {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.overview-stat--accent {
+  border-color: rgba(31, 157, 135, 0.32);
+  background: #eef8f5;
+}
+
+.overview-label,
+.overview-note {
+  color: var(--ink-500);
+  font-size: 12px;
+}
+
+.overview-stat strong {
+  overflow: hidden;
+  color: var(--ink-950);
+  font-size: 22px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-home-grid {
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.section-kicker {
+  margin: 0 0 5px;
+  color: var(--teal-dark);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: var(--ink-950);
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+
+.section-count {
+  color: var(--ink-500);
+  font-size: 12px;
 }
 
 .workspace-card {
@@ -280,6 +443,145 @@ onMounted(loadWorkspaces);
 
 .workspace-card :deep(.el-empty) {
   padding: 88px 24px;
+}
+
+.workspace-activity-panel {
+  order: -1;
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: var(--shadow-card);
+}
+
+.workspace-activity-panel .section-heading {
+  margin-bottom: 14px;
+}
+
+.quick-action {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: inherit;
+  text-align: left;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease,
+    transform 160ms ease;
+}
+
+.quick-action + .quick-action {
+  margin-top: 0;
+}
+
+.quick-action:hover,
+.quick-action:focus-visible {
+  border-color: #9fcfc4;
+  background: #f2faf7;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.quick-action--primary {
+  border-color: rgba(31, 157, 135, 0.34);
+  background: #eef8f5;
+}
+
+.quick-action-index {
+  color: var(--teal-dark);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+}
+
+.quick-action-copy {
+  min-width: 0;
+}
+
+.quick-action-copy strong,
+.quick-action-copy small {
+  display: block;
+}
+
+.quick-action-copy strong {
+  overflow: hidden;
+  color: var(--ink-900);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-action-copy small {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--ink-500);
+  font-size: 11px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-action-arrow {
+  color: var(--teal-dark);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.activity-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 761px) {
+  .workspace-activity-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(250px, 0.85fr);
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .workspace-activity-panel .section-heading {
+    grid-column: 1 / -1;
+  }
+
+  .activity-note {
+    margin-top: 0;
+    padding-top: 0;
+    padding-left: 18px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+}
+
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 4px rgba(31, 157, 135, 0.12);
+}
+
+.activity-note strong {
+  color: var(--ink-900);
+  font-size: 12px;
+}
+
+.activity-note p {
+  margin: 5px 0 0;
+  color: var(--ink-500);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .workspace-page :deep(.el-button--primary) {
@@ -325,6 +627,18 @@ onMounted(loadWorkspaces);
 
   .page-header :deep(.el-button) {
     width: 100%;
+  }
+
+  .workspace-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-activity-panel {
+    margin-bottom: 18px;
+  }
+
+  .quick-action + .quick-action {
+    margin-top: 10px;
   }
 }
 </style>

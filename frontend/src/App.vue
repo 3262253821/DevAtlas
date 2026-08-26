@@ -18,10 +18,13 @@ async function logout(): Promise<void> {
 </script>
 
 <template>
-  <div class="app-shell">
-    <header
+  <div
+    class="app-shell"
+    :class="{ 'app-shell--sidebar': showNavigation }"
+  >
+    <aside
       v-if="showNavigation"
-      class="app-header"
+      class="app-sidebar"
     >
       <RouterLink
         class="brand-lockup"
@@ -59,9 +62,11 @@ async function logout(): Promise<void> {
           退出
         </el-button>
       </div>
-    </header>
+    </aside>
 
-    <RouterView />
+    <div class="app-content">
+      <RouterView />
+    </div>
   </div>
 </template>
 
@@ -71,15 +76,29 @@ async function logout(): Promise<void> {
   background: var(--paper);
 }
 
-.app-header {
-  min-height: 72px;
-  padding: 0 44px;
+.app-shell--sidebar {
+  padding-left: 248px;
+}
+
+.app-content {
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 248px;
   display: flex;
-  align-items: center;
-  gap: 46px;
+  flex-direction: column;
+  padding: 28px 20px 22px;
   color: #f5f1e8;
   background: var(--ink-950);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 8px 0 28px rgba(10, 18, 32, 0.08);
 }
 
 .brand-lockup {
@@ -89,6 +108,12 @@ async function logout(): Promise<void> {
   color: inherit;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.app-sidebar .brand-lockup {
+  width: 100%;
+  padding: 2px 4px 28px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
 }
 
 .brand-lockup strong,
@@ -122,10 +147,9 @@ async function logout(): Promise<void> {
 
 .main-navigation {
   display: flex;
-  align-items: stretch;
-  align-self: stretch;
-  gap: 28px;
-  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 28px;
 }
 
 .main-navigation a {
@@ -133,23 +157,29 @@ async function logout(): Promise<void> {
   display: inline-flex;
   align-items: center;
   gap: 9px;
+  min-height: 44px;
+  padding: 0 13px;
+  border-radius: 8px;
   color: #aeb8c7;
   font-size: 13px;
   text-decoration: none;
+  transition: color 160ms ease, background 160ms ease;
 }
 
 .main-navigation a::after {
   content: "";
   position: absolute;
-  right: 0;
-  bottom: 0;
+  top: 9px;
+  bottom: 9px;
   left: 0;
-  height: 3px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
   background: transparent;
 }
 
 .main-navigation a.router-link-active {
   color: #f8f4eb;
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .main-navigation a.router-link-active::after {
@@ -163,6 +193,9 @@ async function logout(): Promise<void> {
 }
 
 .user-actions {
+  margin-top: auto;
+  padding: 18px 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
   display: flex;
   align-items: center;
   gap: 9px;
@@ -179,7 +212,7 @@ async function logout(): Promise<void> {
 }
 
 .logout-button {
-  margin-left: 8px;
+  margin-left: auto;
   color: #aeb8c7 !important;
   font-size: 12px;
 }
@@ -190,21 +223,106 @@ async function logout(): Promise<void> {
 }
 
 @media (max-width: 760px) {
-  .app-header {
-    min-height: auto;
-    padding: 14px 18px;
-    flex-wrap: wrap;
-    gap: 14px 22px;
+  .app-shell--sidebar {
+    padding-left: 0;
+  }
+
+  .app-sidebar {
+    position: sticky;
+    width: auto;
+    min-height: 66px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 12px 18px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 6px 18px rgba(10, 18, 32, 0.08);
+  }
+
+  .app-sidebar .brand-lockup {
+    width: auto;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .app-sidebar .brand-lockup small {
+    display: none;
+  }
+
+  .main-navigation {
+    flex-direction: row;
+    justify-content: center;
+    gap: 4px;
+    margin: 0 12px;
+  }
+
+  .main-navigation a {
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .main-navigation a::after {
+    top: auto;
+    right: 10px;
+    bottom: 0;
+    left: 10px;
+    width: auto;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .user-actions {
+    margin-top: 0;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .user-name {
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .logout-button {
+    margin-left: 2px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-sidebar {
+    grid-template-columns: auto auto;
+    gap: 12px;
   }
 
   .main-navigation {
     order: 3;
-    width: 100%;
-    min-height: 34px;
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    margin: 0;
   }
 
   .user-actions {
     margin-left: auto;
+  }
+
+  .user-name {
+    display: none;
+  }
+}
+
+/* Keep the right-hand application surface as the only scrolling region on desktop. */
+@media (min-width: 761px) {
+  .app-content {
+    min-height: 100vh;
+  }
+}
+
+/* Legacy header rule intentionally removed; navigation is now the fixed sidebar. */
+@media (max-width: 760px) {
+  .app-content {
+    min-height: calc(100vh - 66px);
   }
 }
 </style>

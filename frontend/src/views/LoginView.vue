@@ -16,6 +16,8 @@ const form = reactive({
 });
 
 const loading = ref(false);
+const agreed = ref(false);
+const policyShaking = ref(false);
 
 function getErrorMessage(error: unknown): string {
   if (isAxiosError<{ detail?: string }>(error)) {
@@ -58,36 +60,49 @@ async function submit(): Promise<void> {
     loading.value = false;
   }
 }
+
+function guardSubmitClick(event: MouseEvent): void {
+  if (agreed.value) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  policyShaking.value = true;
+  ElMessage.warning("请先同意服务协议与隐私政策");
+
+  window.setTimeout(() => {
+    policyShaking.value = false;
+  }, 420);
+}
 </script>
 
 <template>
   <main class="auth-page">
-    <section class="auth-story">
-      <div class="story-grid" aria-hidden="true"></div>
-      <div class="story-content">
-        <div class="story-brand">
-          <span class="brand-mark">D</span>
-          <span>DEVATLAS / 01</span>
+    <section class="auth-visual" aria-label="DevAtlas 视觉标识">
+      <div class="visual-grid" aria-hidden="true"></div>
+      <div class="visual-topbar">
+        <div class="visual-brand">
+          <span class="visual-mark">D</span>
+          <span>DevAtlas <small>研发知识协同平台</small></span>
         </div>
-        <p class="story-kicker">研发知识协同平台</p>
-        <h1>把团队经验，<br /><em>变成可检索的答案。</em></h1>
-        <p class="story-copy">
-          文档、故障日志与排查经验汇聚在同一个工作区，
-          让每一次定位都有来源可追溯。
-        </p>
-        <div class="story-footnote">
-          <span class="story-line"></span>
-          <span>SECURE KNOWLEDGE WORKSPACE</span>
-        </div>
+      </div>
+
+      <div class="visual-stage" aria-hidden="true">
+        <div class="stage-shadow"></div>
+        <div class="stage-platform"></div>
+        <div class="stage-rail"></div>
+        <div class="stage-orbit"></div>
+        <div class="stage-core"></div>
       </div>
     </section>
 
     <section class="auth-form-area">
-      <div class="auth-form-wrap">
+      <div class="auth-form-wrap auth-panel">
         <div class="form-heading">
           <p class="eyebrow">WELCOME BACK</p>
-          <h2>登录工作区</h2>
-          <p>使用你的 DevAtlas 账号继续工作。</p>
+          <h2>欢迎使用 DevAtlas</h2>
+          <p>进入你的研发知识工作区。</p>
         </div>
 
         <el-form
@@ -113,14 +128,45 @@ async function submit(): Promise<void> {
             />
           </el-form-item>
 
-          <el-button
-            class="auth-submit"
-            type="primary"
-            native-type="submit"
-            :loading="loading"
+          <div
+            class="policy-row"
+            :class="{ 'policy-row--shake': policyShaking }"
           >
-            进入工作区 <span aria-hidden="true">↗</span>
-          </el-button>
+            <el-checkbox v-model="agreed">
+              我同意
+              <RouterLink
+                class="policy-link"
+                to="/legal/terms"
+                @click.stop
+              >
+                《服务协议》
+              </RouterLink>
+              与
+              <RouterLink
+                class="policy-link"
+                to="/legal/privacy"
+                @click.stop
+              >
+                《隐私政策》
+              </RouterLink>
+            </el-checkbox>
+          </div>
+
+          <div
+            class="auth-submit-wrap"
+            :class="{ 'auth-submit-wrap--disabled': !agreed }"
+            @click.capture="guardSubmitClick"
+          >
+            <el-button
+              class="auth-submit"
+              type="primary"
+              native-type="submit"
+              :loading="loading"
+              :disabled="!agreed"
+            >
+              进入工作区 <span aria-hidden="true">↗</span>
+            </el-button>
+          </div>
         </el-form>
 
         <p class="auth-footer">

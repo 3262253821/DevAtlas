@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { isAxiosError } from "axios";
 import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";
@@ -15,6 +15,44 @@ const form = reactive({
 
 const loading = ref(false);
 
+// 这些计算属性会随着输入实时更新，用于把后端的长度约束提前反馈给用户。
+const usernameError = computed(() => {
+  const length = form.username.trim().length;
+
+  if (length > 0 && length < 3) {
+    return "用户名至少需要 3 个字符";
+  }
+
+  if (length > 50) {
+    return "用户名不能超过 50 个字符";
+  }
+
+  return "";
+});
+
+const passwordError = computed(() => {
+  if (form.password.length > 0 && form.password.length < 8) {
+    return "密码至少需要 8 个字符";
+  }
+
+  if (form.password.length > 128) {
+    return "密码不能超过 128 个字符";
+  }
+
+  return "";
+});
+
+const confirmPasswordError = computed(() => {
+  if (
+    form.confirmPassword.length > 0 &&
+    form.password !== form.confirmPassword
+  ) {
+    return "两次输入的密码不一致";
+  }
+
+  return "";
+});
+
 function getErrorMessage(error: unknown): string {
   if (isAxiosError<{ detail?: string }>(error)) {
     const detail = error.response?.data?.detail;
@@ -28,18 +66,33 @@ function getErrorMessage(error: unknown): string {
 }
 
 async function submit(): Promise<void> {
-  if (form.username.trim().length < 3) {
-    ElMessage.warning("用户名至少需要 3 个字符");
+  if (!form.username.trim()) {
+    ElMessage.warning("请输入用户名");
     return;
   }
 
-  if (form.password.length < 8) {
-    ElMessage.warning("密码至少需要 8 个字符");
+  if (usernameError.value) {
+    ElMessage.warning(usernameError.value);
     return;
   }
 
-  if (form.password !== form.confirmPassword) {
-    ElMessage.warning("两次输入的密码不一致");
+  if (!form.password) {
+    ElMessage.warning("请输入密码");
+    return;
+  }
+
+  if (passwordError.value) {
+    ElMessage.warning(passwordError.value);
+    return;
+  }
+
+  if (!form.confirmPassword) {
+    ElMessage.warning("请确认密码");
+    return;
+  }
+
+  if (confirmPasswordError.value) {
+    ElMessage.warning(confirmPasswordError.value);
     return;
   }
 
@@ -63,22 +116,21 @@ async function submit(): Promise<void> {
 
 <template>
   <main class="auth-page">
-    <section class="auth-story">
-      <div class="story-grid" aria-hidden="true"></div>
-      <div class="story-content">
-        <div class="story-brand">
-          <span class="brand-mark">D</span>
-          <span>DEVATLAS / 00</span>
+    <section class="auth-visual" aria-label="DevAtlas 视觉标识">
+      <div class="visual-grid" aria-hidden="true"></div>
+      <div class="visual-topbar">
+        <div class="visual-brand">
+          <span class="visual-mark">D</span>
+          <span>DevAtlas <small>研发知识协同平台</small></span>
         </div>
-        <p class="story-kicker">建立你的第一个工作区</p>
-        <h1>让经验<br /><em>留下路径。</em></h1>
-        <p class="story-copy">
-          从一份文档开始，把团队的知识、上下文与排障经验组织起来。
-        </p>
-        <div class="story-footnote">
-          <span class="story-line"></span>
-          <span>KNOWLEDGE THAT MOVES WITH THE TEAM</span>
-        </div>
+      </div>
+
+      <div class="visual-stage" aria-hidden="true">
+        <div class="stage-shadow"></div>
+        <div class="stage-platform"></div>
+        <div class="stage-rail"></div>
+        <div class="stage-orbit"></div>
+        <div class="stage-core"></div>
       </div>
     </section>
 
@@ -86,16 +138,20 @@ async function submit(): Promise<void> {
       <div class="auth-form-wrap">
         <div class="form-heading">
           <p class="eyebrow">CREATE ACCOUNT</p>
-          <h2>创建账号</h2>
-          <p>注册后即可建立你的第一个研发知识库。</p>
+          <h2>创建 DevAtlas 账号</h2>
+          <p>注册后即可建立你的研发知识工作区。</p>
         </div>
 
         <el-form
-          class="auth-form"
+          class="auth-form auth-form--register"
           :model="form"
           @submit.prevent="submit"
         >
-          <el-form-item label="用户名">
+          <el-form-item
+            label="用户名"
+            :error="usernameError || undefined"
+            :validate-status="usernameError ? 'error' : ''"
+          >
             <el-input
               v-model="form.username"
               autocomplete="username"
@@ -103,7 +159,11 @@ async function submit(): Promise<void> {
             />
           </el-form-item>
 
-          <el-form-item label="密码">
+          <el-form-item
+            label="密码"
+            :error="passwordError || undefined"
+            :validate-status="passwordError ? 'error' : ''"
+          >
             <el-input
               v-model="form.password"
               type="password"
@@ -113,7 +173,11 @@ async function submit(): Promise<void> {
             />
           </el-form-item>
 
-          <el-form-item label="确认密码">
+          <el-form-item
+            label="确认密码"
+            :error="confirmPasswordError || undefined"
+            :validate-status="confirmPasswordError ? 'error' : ''"
+          >
             <el-input
               v-model="form.confirmPassword"
               type="password"

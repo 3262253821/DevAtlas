@@ -16,6 +16,10 @@ env/
 !.env.example
 .env.local
 
+# Local browser QA artifacts
+.playwright-cli/
+output/
+
 # FastAPI uploads and generated data
 uploads/
 others/uploads/

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 import { streamQuestion } from "../api/qa";
@@ -21,11 +21,26 @@ const topK = ref(5);
 const answer = ref("");
 const citations = ref<Citation[]>([]);
 const loading = ref(false);
+const resultsRef = ref<HTMLElement | null>(null);
 
 let controller: AbortController | null = null;
 
 const knowledgeBaseId = computed(() => {
   return Number(route.params.id);
+});
+
+// 流式回答增长时跟随底部，但尊重用户主动向上查看旧内容的操作。
+watch(answer, async () => {
+  const element = resultsRef.value;
+  const nearBottom =
+    !element ||
+    element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+
+  await nextTick();
+
+  if (nearBottom && resultsRef.value) {
+    resultsRef.value.scrollTop = resultsRef.value.scrollHeight;
+  }
 });
 
 function stop(): void {
@@ -96,7 +111,7 @@ async function submit(): Promise<void> {
   <main class="qa-page">
     <header class="page-header">
       <el-button
-        link
+        class="page-back-button"
         @click="
           router.push({
             name: 'knowledge',
@@ -104,107 +119,197 @@ async function submit(): Promise<void> {
           })
         "
       >
-        返回工作台
+        ← 返回工作台
       </el-button>
 
       <h1>知识库问答</h1>
       <p>回答只基于当前知识库中已索引的文档。</p>
     </header>
 
-    <section class="qa-panel">
-      <el-input
-        v-model="question"
-        type="textarea"
-        :rows="5"
-        maxlength="2000"
-        show-word-limit
-        placeholder="例如：忘记密码后应该怎么办？"
-      />
+    <section class="qa-workspace">
+      <section class="qa-panel">
+        <div class="panel-kicker">ASK THE KNOWLEDGE BASE</div>
+        <h2 class="panel-title">提出一个问题</h2>
+        <p class="panel-description">
+          描述你遇到的研发问题，回答会严格基于当前知识库。
+        </p>
 
-      <div class="qa-actions">
-        <el-input-number v-model="topK" :min="1" :max="10" label="Top-K" />
+        <el-input
+          v-model="question"
+          type="textarea"
+          :rows="8"
+          maxlength="2000"
+          show-word-limit
+          placeholder="例如：忘记密码后应该怎么办？"
+        />
 
-        <el-button type="primary" :loading="loading" @click="submit">
-          开始提问
-        </el-button>
+        <div class="qa-actions">
+          <div class="top-k-control">
+            <span class="control-label">检索片段</span>
+            <el-input-number
+              v-model="topK"
+              :min="1"
+              :max="10"
+              label="Top-K"
+            />
+          </div>
 
-        <el-button v-if="loading" @click="stop"> 停止 </el-button>
-      </div>
+          <div class="action-buttons">
+            <el-button type="primary" :loading="loading" @click="submit">
+              {{ loading ? "生成中" : "开始提问" }}
+            </el-button>
+
+            <el-button v-if="loading" @click="stop">停止生成</el-button>
+          </div>
+        </div>
+      </section>
+
+      <section ref="resultsRef" class="qa-results" aria-live="polite">
+        <div v-if="!answer" class="qa-result-empty">
+          <span class="empty-mark" aria-hidden="true">↗</span>
+          <strong>{{ loading ? "正在生成回答" : "回答会出现在这里" }}</strong>
+          <p>
+            {{
+              loading
+                ? "正在检索相关文档并组织答案，请稍候。"
+                : "提交问题后，回答和引用来源会在此区域展示。"
+            }}
+          </p>
+        </div>
+
+        <el-card v-if="answer" class="answer-card">
+          <template #header>
+            <div class="result-heading">
+              <span>回答</span>
+              <span v-if="loading" class="result-status">实时生成中</span>
+            </div>
+          </template>
+
+          <div class="answer-content">
+            {{ answer }}
+          </div>
+        </el-card>
+
+        <el-card v-if="citations.length" class="citation-card">
+          <template #header>
+            <div class="result-heading">
+              <span>引用来源</span>
+              <span class="result-count">{{ citations.length }} 个片段</span>
+            </div>
+          </template>
+
+          <el-table :data="citations">
+            <el-table-column prop="index" label="#" width="60" />
+            <el-table-column prop="filename" label="文件" min-width="180" />
+            <el-table-column prop="chunk_index" label="切片" width="80" />
+            <el-table-column prop="distance" label="距离" width="100" />
+          </el-table>
+        </el-card>
+      </section>
     </section>
-
-    <el-card v-if="answer" class="answer-card">
-      <template #header>
-        <span>回答</span>
-      </template>
-
-      <div class="answer-content">
-        {{ answer }}
-      </div>
-    </el-card>
-
-    <el-card v-if="citations.length" class="citation-card">
-      <template #header>
-        <span>引用来源</span>
-      </template>
-
-      <el-table :data="citations">
-        <el-table-column prop="index" label="#" width="60" />
-        <el-table-column prop="filename" label="文件" />
-        <el-table-column prop="chunk_index" label="切片" width="80" />
-        <el-table-column prop="distance" label="距离" width="100" />
-      </el-table>
-    </el-card>
   </main>
 </template>
 
 <style scoped>
 .qa-page {
-  min-height: 100vh;
-  padding: 46px 44px 84px;
+  height: 100vh;
+  min-height: 620px;
+  padding: 34px 44px 38px;
   background: var(--paper);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-header,
-.qa-panel,
-.answer-card,
-.citation-card {
-  max-width: 1060px;
+.qa-workspace {
+  width: min(100%, 1240px);
   margin-left: auto;
   margin-right: auto;
 }
 
+.page-header {
+  flex: 0 0 auto;
+}
+
 .page-header h1 {
-  margin: 22px 0 8px;
+  margin: 18px 0 7px;
   color: var(--ink-950);
-  font-size: clamp(30px, 4vw, 46px);
+  font-size: clamp(30px, 3.6vw, 44px);
   letter-spacing: -0.04em;
 }
 
 .page-header p {
+  margin: 0;
   color: var(--ink-500);
   font-size: 14px;
 }
 
+.qa-workspace {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.38fr) minmax(0, 0.62fr);
+  gap: 22px;
+  height: calc(100% - 122px);
+  min-height: 0;
+  margin-top: 26px;
+}
+
 .qa-panel {
-  margin-top: 24px;
+  min-height: 0;
   padding: 24px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
+.panel-kicker {
+  color: var(--teal-dark);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.panel-title {
+  margin: 12px 0 7px;
+  color: var(--ink-950);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.panel-description {
+  margin: 0 0 22px;
+  color: var(--ink-500);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .qa-actions {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.top-k-control {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 16px;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.control-label {
+  color: var(--ink-700);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
 }
 
 .qa-panel :deep(.el-textarea__inner) {
-  min-height: 150px !important;
-  padding: 16px;
+  min-height: 190px !important;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: none;
@@ -214,44 +319,111 @@ async function submit(): Promise<void> {
 }
 
 .qa-panel :deep(.el-input-number) {
-  width: 132px;
+  width: 122px;
 }
 
 .qa-panel :deep(.el-button--primary) {
-  min-height: 40px;
+  flex: 1;
+  min-height: 42px;
   border: 0;
   border-radius: 8px;
-  color: var(--ink-950);
+  color: #ffffff;
   background: var(--teal);
   font-weight: 700;
 }
 
+.action-buttons :deep(.el-button:not(.el-button--primary)) {
+  min-height: 42px;
+  border-radius: 8px;
+}
+
+.qa-results {
+  min-width: 0;
+  min-height: 0;
+  padding-right: 4px;
+  overflow-y: auto;
+  scrollbar-color: #c7d1dc transparent;
+  scrollbar-width: thin;
+}
+
+.qa-result-empty {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  padding: 40px 24px;
+  border: 1px dashed #cbd6e1;
+  border-radius: 14px;
+  color: var(--ink-700);
+  text-align: center;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.empty-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  color: #ffffff;
+  background: var(--teal);
+  font-size: 20px;
+}
+
+.qa-result-empty strong {
+  color: var(--ink-900);
+  font-size: 16px;
+}
+
+.qa-result-empty p {
+  max-width: 310px;
+  margin: 8px 0 0;
+  color: var(--ink-500);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .answer-card,
 .citation-card {
-  margin-top: 20px;
+  margin: 0 0 18px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 14px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
 .answer-content {
-  min-height: 120px;
+  min-height: 160px;
   white-space: pre-wrap;
   color: var(--ink-700);
   line-height: 1.8;
+}
+
+.result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.result-status,
+.result-count {
+  color: var(--teal-dark);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .answer-card :deep(.el-card__header),
 .citation-card :deep(.el-card__header) {
   color: var(--ink-950);
   font-weight: 700;
-  background: #f5f1e8;
+  background: #f4f7f9;
   border-bottom-color: var(--line);
 }
 
 .citation-card :deep(.el-table) {
-  --el-table-header-bg-color: #fbfaf5;
+  --el-table-header-bg-color: #fbfcfd;
   --el-table-border-color: var(--line);
 }
 
@@ -260,19 +432,40 @@ async function submit(): Promise<void> {
   color: var(--ink-500);
 }
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   .qa-page {
+    height: auto;
+    min-height: 100vh;
     padding: 34px 16px 60px;
+    overflow: visible;
   }
 
-  .qa-actions {
+  .qa-workspace {
+    display: block;
+    height: auto;
+    margin-top: 22px;
+  }
+
+  .qa-panel {
+    margin-bottom: 18px;
+  }
+
+  .qa-panel :deep(.el-input-number) {
+    width: 100%;
+  }
+
+  .top-k-control,
+  .action-buttons {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .qa-panel :deep(.el-input-number),
-  .qa-actions :deep(.el-button) {
+  .action-buttons :deep(.el-button) {
     width: 100%;
+  }
+
+  .qa-results {
+    overflow: visible;
   }
 }
 </style>

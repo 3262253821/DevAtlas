@@ -12,6 +12,7 @@ import DocumentsView from "../views/DocumentsView.vue";
 import QaView from "../views/QaView.vue";
 import IncidentNewView from "../views/IncidentNewView.vue";
 import IncidentsView from "../views/IncidentsView.vue";
+import LegalView from "../views/LegalView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -27,6 +28,16 @@ const routes: RouteRecordRaw[] = [
     path: "/register",
     name: "register",
     component: RegisterView,
+  },
+  {
+    path: "/legal/terms",
+    name: "terms",
+    component: LegalView,
+  },
+  {
+    path: "/legal/privacy",
+    name: "privacy",
+    component: LegalView,
   },
   {
     path: "/workspaces",

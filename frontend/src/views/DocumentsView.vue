@@ -149,7 +149,7 @@ onMounted(loadDocuments);
     <header class="page-header">
       <div>
         <el-button
-          link
+          class="page-back-button"
           @click="
             router.push({
               name: 'knowledge',
@@ -157,7 +157,7 @@ onMounted(loadDocuments);
             })
           "
         >
-          返回工作台
+          ← 返回工作台
         </el-button>
 
         <h1>文档管理</h1>
