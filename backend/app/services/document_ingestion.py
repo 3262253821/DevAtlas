@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -6,6 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.core.config import PROJECT_ROOT
 from app.core.file_security import normalize_filename
+from app.core.statuses import (
+    DOCUMENT_VERSION_FAILED,
+    DOCUMENT_VERSION_INDEXED,
+    DOCUMENT_VERSION_PENDING,
+)
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.document_version import DocumentVersion
@@ -28,6 +34,9 @@ from app.services.vector_store import (
     delete_vectors,
     upsert_chunks,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -92,6 +101,12 @@ def ingest_document(
     knowledge_base_id: int,
     saved_file: SavedFile,
 ) -> DocumentIngestionResult:
+
+    logger.info(
+        "document_ingestion_started kb_id=%s filename=%s",
+        knowledge_base_id,
+        saved_file.original_filename,
+    )
 
     # 文件名规范化
     normalized_filename = normalize_filename(
@@ -165,7 +180,7 @@ def ingest_document(
             saved_file.storage_path
         ),
         file_size=saved_file.file_size,
-        status="pending",
+        status=DOCUMENT_VERSION_PENDING,
         chunk_count=0,
     )
 
@@ -269,12 +284,20 @@ def ingest_document(
 
         current_version.chunk_count = len(chunks)
         # 更新版本状态为 indexed
-        current_version.status = "indexed"
+        current_version.status = DOCUMENT_VERSION_INDEXED
         current_version.error_message = None
         current_document.current_version_id = version_id
 
         # 这才是真正提交事务，确保所有操作都成功
         db.commit()
+
+        logger.info(
+            "document_ingestion_indexed kb_id=%s document_id=%s version_id=%s chunks=%s",
+            knowledge_base_id,
+            document_id,
+            version_id,
+            len(chunks),
+        )
 
         return DocumentIngestionResult(
             document=current_document,
@@ -282,12 +305,7 @@ def ingest_document(
             duplicate=False,
         )
 
-    except (
-        DocumentParseError,
-        InvalidChunkConfigError,
-        EmbeddingError,
-        VectorStoreError,
-    ) as error:
+    except Exception as error:
     # 如果出现异常,回滚事务,仅针对MySQL操作
         db.rollback()
 
@@ -306,11 +324,18 @@ def ingest_document(
         )
         # 失败补偿,更新版本状态为 failed
         if failed_version is not None:
-            failed_version.status = "failed"
+            failed_version.status = DOCUMENT_VERSION_FAILED
             # [:2000]表示最多存储2000个字符,超过部分截断
             failed_version.error_message = str(error)[:2000]
             failed_version.chunk_count = 0
             db.commit()
+
+        logger.exception(
+            "document_ingestion_failed kb_id=%s document_id=%s version_id=%s",
+            knowledge_base_id,
+            document_id,
+            version_id,
+        )
 
         failed_document = db.get(
             Document,

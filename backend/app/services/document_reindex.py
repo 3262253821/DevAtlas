@@ -1,9 +1,16 @@
+import logging
+
 from sqlalchemy import delete, desc, select
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.document_version import DocumentVersion
+from app.core.statuses import (
+    DOCUMENT_VERSION_FAILED,
+    DOCUMENT_VERSION_INDEXED,
+    DOCUMENT_VERSION_PENDING,
+)
 from app.services.document_ingestion import (
     _build_chunk_metadata,
 )
@@ -33,6 +40,9 @@ from app.services.vector_store import (
 
 class ReindexNotAllowedError(Exception):
     pass
+
+
+logger = logging.getLogger(__name__)
 
 
 def reindex_document(
@@ -92,7 +102,7 @@ def reindex_document(
         )
     )
 
-    version.status = "pending"
+    version.status = DOCUMENT_VERSION_PENDING
     version.error_message = None
     version.chunk_count = 0
     # 重建索引期间保留原 current_version_id。
@@ -160,19 +170,22 @@ def reindex_document(
         )
 
         version.chunk_count = len(chunks)
-        version.status = "indexed"
+        version.status = DOCUMENT_VERSION_INDEXED
         version.error_message = None
         # 新版本（或重建成功的版本）完成全部处理后，才正式成为当前版本。
         document.current_version_id = version.id
 
         db.commit()
 
-    except (
-        DocumentParseError,
-        InvalidChunkConfigError,
-        EmbeddingError,
-        VectorStoreError,
-    ) as error:
+        logger.info(
+            "document_reindex_succeeded kb_id=%s document_id=%s version_id=%s chunks=%s",
+            knowledge_base_id,
+            document_id,
+            version.id,
+            len(chunks),
+        )
+
+    except Exception as error:
         db.rollback()
 
         if vector_ids:
@@ -189,11 +202,18 @@ def reindex_document(
         if failed_version is None:
             raise
 
-        failed_version.status = "failed"
+        failed_version.status = DOCUMENT_VERSION_FAILED
         failed_version.error_message = str(error)[:2000]
         failed_version.chunk_count = 0
 
         db.commit()
+
+        logger.exception(
+            "document_reindex_failed kb_id=%s document_id=%s version_id=%s",
+            knowledge_base_id,
+            document_id,
+            version.id,
+        )
 
         version = failed_version
 

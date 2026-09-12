@@ -1,0 +1,13 @@
+"""业务状态常量，避免在不同模块散落硬编码字符串。"""
+
+DOCUMENT_VERSION_PENDING = "pending"
+DOCUMENT_VERSION_INDEXED = "indexed"
+DOCUMENT_VERSION_FAILED = "failed"
+
+DOCUMENT_VERSION_STATUSES = frozenset(
+    {
+        DOCUMENT_VERSION_PENDING,
+        DOCUMENT_VERSION_INDEXED,
+        DOCUMENT_VERSION_FAILED,
+    }
+)

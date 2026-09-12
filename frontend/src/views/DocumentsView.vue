@@ -51,6 +51,22 @@ function statusType(status: string): "success" | "warning" | "danger" | "info" {
   return "info";
 }
 
+function statusLabel(status: string): string {
+  if (status === "indexed") {
+    return "已索引";
+  }
+
+  if (status === "failed") {
+    return "处理失败";
+  }
+
+  if (status === "pending") {
+    return "处理中";
+  }
+
+  return status;
+}
+
 function formatDate(value: string): string {
   return new Date(value).toLocaleString("zh-CN");
 }
@@ -203,7 +219,7 @@ onMounted(loadDocuments);
             <el-tag
               :type="statusType(row.current_version?.status || 'unknown')"
             >
-              {{ row.current_version?.status || "unknown" }}
+              {{ statusLabel(row.current_version?.status || "unknown") }}
             </el-tag>
           </template>
         </el-table-column>
@@ -222,18 +238,26 @@ onMounted(loadDocuments);
 
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-if="row.current_version?.status === 'failed'"
-              link
-              type="warning"
-              @click="reindex(row)"
-            >
-              重新索引
-            </el-button>
+            <div class="document-row-actions">
+              <el-button
+                v-if="row.current_version?.status === 'failed'"
+                class="document-reindex-button"
+                type="warning"
+                plain
+                @click="reindex(row)"
+              >
+                重新索引
+              </el-button>
 
-            <el-button link type="danger" @click="removeDocument(row)">
-              删除
-            </el-button>
+              <el-button
+                class="document-delete-button"
+                type="danger"
+                plain
+                @click="removeDocument(row)"
+              >
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -308,6 +332,40 @@ onMounted(loadDocuments);
   padding: 88px 24px;
 }
 
+.document-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.document-row-actions :deep(.el-button) {
+  min-height: 34px;
+  margin: 0;
+  padding: 0 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.document-row-actions :deep(.document-reindex-button) {
+  border-color: #dfb36f;
+  color: #9a641e;
+  background: #fffaf2;
+}
+
+.document-row-actions :deep(.document-delete-button) {
+  border-color: #e08b82;
+  color: #c54e42;
+  background: #fff8f7;
+}
+
+.document-row-actions :deep(.document-delete-button:hover) {
+  border-color: #c54e42;
+  color: #ffffff;
+  background: #d85c49;
+}
+
 .documents-page :deep(.el-button--primary) {
   min-height: 42px;
   padding: 0 20px;
@@ -320,11 +378,6 @@ onMounted(loadDocuments);
 
 .documents-page :deep(.el-button--primary:hover) {
   background: #2aaf99;
-}
-
-.documents-page :deep(.el-button.is-link) {
-  padding: 0;
-  color: var(--ink-500);
 }
 
 @media (max-width: 760px) {

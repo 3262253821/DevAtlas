@@ -34,27 +34,31 @@ class RetrievedChunk:
 
 @dataclass(frozen=True)
 class RetrievalResult:
+    # 先记住，context是给大模型看的拼接文本
     context: str
+    # sources 是给系统和前端展示的结构化来源
     sources: list[RetrievedChunk]
-
+    
 
 def _get_indexed_version_ids(
     db: Session,
     knowledge_base_id: int,
 ) -> list[int]:
     """
-    查询当前知识库中允许参与检索的 indexed 版本。
+    只返回当前知识库中“当前生效且已 indexed”的文档版本。
+    每个逻辑文档最多只参与一个版本。
     """
     statement = (
         select(DocumentVersion.id)
         .join(
             Document,
-            DocumentVersion.document_id
-            == Document.id,
+            Document.current_version_id
+            == DocumentVersion.id,
         )
         .where(
             Document.knowledge_base_id
             == knowledge_base_id,
+            Document.current_version_id.is_not(None),
             DocumentVersion.status == "indexed",
         )
     )
@@ -85,7 +89,7 @@ def _build_where_filter(
         ],
     }
 
-
+# 检索函数
 def retrieve_context(
     db: Session,
     knowledge_base_id: int,

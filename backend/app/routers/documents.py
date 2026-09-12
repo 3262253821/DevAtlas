@@ -11,6 +11,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
+from app.core.statuses import DOCUMENT_VERSION_STATUSES
 from app.core.file_security import (
     InvalidFilenameError,
     UnsupportedFileTypeError,
@@ -57,11 +58,7 @@ router = APIRouter(
 )
 
 
-VALID_VERSION_STATUSES = {
-    "pending",
-    "indexed",
-    "failed",
-}
+VALID_VERSION_STATUSES = DOCUMENT_VERSION_STATUSES
 
 
 def _version_summary(
@@ -82,7 +79,7 @@ def _version_summary(
         updated_at=version.updated_at,
     )
 
-
+# 验证知识库是否存在以及是否属于当前用户
 def _verify_knowledge_base(
     db: Session,
     current_user: User,
@@ -113,6 +110,7 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DocumentUploadResponse:
+    # 验证知识库是否存在以及是否属于当前用户
     _verify_knowledge_base(
         db,
         current_user,
