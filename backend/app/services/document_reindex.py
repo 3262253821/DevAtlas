@@ -95,7 +95,8 @@ def reindex_document(
     version.status = "pending"
     version.error_message = None
     version.chunk_count = 0
-    document.current_version_id = version.id
+    # 重建索引期间保留原 current_version_id。
+    # 只有处理成功后才切换，避免失败时让旧 indexed 版本失去检索资格。
 
     db.commit()
 
@@ -161,6 +162,8 @@ def reindex_document(
         version.chunk_count = len(chunks)
         version.status = "indexed"
         version.error_message = None
+        # 新版本（或重建成功的版本）完成全部处理后，才正式成为当前版本。
+        document.current_version_id = version.id
 
         db.commit()
 

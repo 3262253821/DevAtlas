@@ -61,7 +61,9 @@ def _delete_duplicate_file(
     )
 
 
+# 命名约定,_build_ 前面的下划线表示 这是模块内部使用的辅助函数,不建议其他模块直接调用
 def _build_chunk_metadata(
+    # 这里的 * 表示后面的参数必须通过“参数名”传入
     *,
     knowledge_base_id: int,
     document_id: int,
@@ -90,13 +92,13 @@ def ingest_document(
     knowledge_base_id: int,
     saved_file: SavedFile,
 ) -> DocumentIngestionResult:
-    """
-    把 T06 保存成功的文件接入 T07/T08 文档处理流程。
-    """
+
+    # 文件名规范化
     normalized_filename = normalize_filename(
         saved_file.original_filename
     ).casefold()
 
+    # 先查找逻辑文档
     document = db.scalar(
         # 先查找逻辑文档
         select(Document).where(
@@ -109,7 +111,8 @@ def ingest_document(
 
     if document is not None:
         duplicate_version = db.scalar(
-            # 检查是否有相同文件 SHA256 的版本
+            # 通过SHA-256检查是否有相同文件的版本
+            # 这样可以避免重复导入相同文件
             select(DocumentVersion).where(
                 DocumentVersion.document_id
                 == document.id,
@@ -124,9 +127,11 @@ def ingest_document(
             return DocumentIngestionResult(
                 document=document,
                 version=duplicate_version,
+                # 如果找到相同版本，将duplicate=True返回给前端
                 duplicate=True,
             )
 
+    # 如果是新内容，创建新文档
     if document is None:
         document = Document(
             knowledge_base_id=knowledge_base_id,
@@ -135,6 +140,7 @@ def ingest_document(
             file_type=saved_file.file_type,
         )
         db.add(document)
+        # flush()会把当前对象同步到数据库，让数据库生成自增 ID，但还没有真正提交事务
         db.flush()
 
     max_version_number = db.scalar(
@@ -148,6 +154,9 @@ def ingest_document(
         )
     )
 
+    # 创建新版本
+    # 每个版本的 version_number 都是唯一的，用于后续的检索
+    # 每个版本的 chunk_count 都是 0，因为新版本还没有被解析
     version = DocumentVersion(
         document_id=document.id,
         version_number=(max_version_number or 0) + 1,
@@ -168,15 +177,16 @@ def ingest_document(
     version_id = version.id
     version_number = version.version_number
 
-    # 先提交 pending 版本。
-    # 这样后续 Embedding 或 Chroma 失败时，
-    # 仍然可以保留 failed 记录。
-    document.current_version_id = version.id
+    # 项目不是先完成全部解析和向量化，最后才创建数据库记录
+    # 而是先创建版本记录，状态设为pending，再提交，在执行解析、切分、Embedding、Chroma 写入
+    # 这里故意不提前切换 current_version_id：只有新版本完整处理成功后，
+    # 才能替换旧的可检索版本，失败时旧版本仍然保持可用。
     db.commit()
 
     vector_ids: list[str] = []
 
     try:
+        # 解析文档
         parsed_document = parse_document(
             saved_file.storage_path,
             saved_file.file_type,
@@ -194,7 +204,8 @@ def ingest_document(
         # 生成文档块的向量表示
         embeddings = embed_texts(chunks)
         # 生成文档块的 vector_id
-        # 每个 vector_id 都是唯一的，用于后续的检索
+        # 每个 vector_id 都是唯一的，对应一个文档块的向量表示
+        # 这份id是用于MySQL的 DocumentChunk.vector_id,失败时调用delete_vectors(vector_ids) 清理 Chroma
         vector_ids = [
             build_vector_id(
                 knowledge_base_id=knowledge_base_id,
@@ -204,7 +215,7 @@ def ingest_document(
             )
             for index in range(len(chunks))
         ]
-        # 生成文档块的 metadata
+        # 生成文档块的 metadata,相当于是文档块的元数据，用于后续的检索
         metadatas = _build_chunk_metadata(
             knowledge_base_id=knowledge_base_id,
             document_id=document_id,
@@ -235,10 +246,12 @@ def ingest_document(
             ]
         )
 
+        # 更新版本记录
         current_version = db.get(
             DocumentVersion,
             version_id,
         )
+        # 更新文档记录
         current_document = db.get(
             Document,
             document_id,
@@ -260,6 +273,7 @@ def ingest_document(
         current_version.error_message = None
         current_document.current_version_id = version_id
 
+        # 这才是真正提交事务，确保所有操作都成功
         db.commit()
 
         return DocumentIngestionResult(
@@ -274,10 +288,11 @@ def ingest_document(
         EmbeddingError,
         VectorStoreError,
     ) as error:
+    # 如果出现异常,回滚事务,仅针对MySQL操作
         db.rollback()
 
         # MySQL 和 Chroma 不是同一个事务系统。
-        # MySQL 失败时，要删除已经写入的向量。
+        # 如果失败发生在Chroma写入之后,就需要删掉刚刚写入的向量,否则会出现Chroma中有向量而MySQL中没有对应的chunk记录
         if vector_ids:
             try:
                 delete_vectors(vector_ids)
@@ -292,6 +307,7 @@ def ingest_document(
         # 失败补偿,更新版本状态为 failed
         if failed_version is not None:
             failed_version.status = "failed"
+            # [:2000]表示最多存储2000个字符,超过部分截断
             failed_version.error_message = str(error)[:2000]
             failed_version.chunk_count = 0
             db.commit()
