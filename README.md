@@ -12,6 +12,7 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - 向量库：Chroma Persistent Client
 - Embedding：本地 `BAAI/bge-small-zh-v1.5`
 - LLM：DeepSeek（目标模型：`deepseek-v4-flash`）
+- RAG 编排：LangChain Core（Retriever 适配、ChatPromptTemplate）
 - 认证：JWT、HTTP Bearer
 - 密码安全：Argon2id 哈希
 - 流式输出：SSE
@@ -40,7 +41,8 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - T15：测试、修复和交付材料（MVP 已完成）。
 - 优化阶段 P0：已完成文档版本切换时机修复、当前 indexed 版本过滤、重复上传幂等、解析/Embedding/Chroma 失败回退和文件边界测试。
 - 优化阶段 P1：已完成文档状态常量、处理阶段日志、前端状态中文映射，以及 Top-K、无答案和引用 metadata 的可复现检索测试。
-- 优化阶段下一步：P2 评估 LangChain 编排层适配；Redis、MCP、多 Agent 等仍不主动加入。
+- 优化阶段 P2：已接入 LangChain Retriever 和 ChatPromptTemplate；保留自定义权限、版本过滤、Chroma 查询、DeepSeek 客户端和 SSE 契约。
+- 优化阶段下一步：根据真实需求评估 Redis、Reranker 等增强项；Redis、MCP、多 Agent 等仍不主动加入。
 
 ## 项目结构
 

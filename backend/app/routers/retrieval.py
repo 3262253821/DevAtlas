@@ -13,10 +13,8 @@ from app.services.knowledge_base import (
     KnowledgeBaseNotFoundError,
     get_knowledge_base,
 )
-from app.services.retrieval import (
-    RetrievalError,
-    retrieve_context,
-)
+from app.services.retrieval import RetrievalError
+from app.services.langchain_rag import retrieve_context_with_langchain
 
 
 router = APIRouter(
@@ -48,7 +46,7 @@ def search_knowledge_base(
         )
 
     try:
-        result = retrieve_context(
+        result = retrieve_context_with_langchain(
             db=db,
             knowledge_base_id=knowledge_base_id,
             question=data.question,

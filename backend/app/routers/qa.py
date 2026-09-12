@@ -32,10 +32,8 @@ from app.services.llm import (
     chat_with_llm,
     stream_chat_with_llm,
 )
-from app.services.retrieval import (
-    RetrievalError,
-    retrieve_context,
-)
+from app.services.retrieval import RetrievalError
+from app.services.langchain_rag import retrieve_context_with_langchain
 
 
 router = APIRouter(
@@ -67,7 +65,7 @@ def answer_question(
         )
 
     try:
-        retrieval_result = retrieve_context(
+        retrieval_result = retrieve_context_with_langchain(
             db=db,
             knowledge_base_id=knowledge_base_id,
             question=data.question,
@@ -158,6 +156,7 @@ def stream_question(
             detail="Knowledge base not found",
         )
 
+    # 后端再次校验问题是否为空，为了处理传来全是空格问题
     if not data.question.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -165,7 +164,8 @@ def stream_question(
         )
 
     try:
-        retrieval_result = retrieve_context(
+        # 进入真正的检索函数
+        retrieval_result = retrieve_context_with_langchain(
             db=db,
             knowledge_base_id=knowledge_base_id,
             question=data.question,

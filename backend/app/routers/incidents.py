@@ -34,10 +34,8 @@ from app.services.llm import (
     build_incident_messages,
     stream_chat_with_llm,
 )
-from app.services.retrieval import (
-    RetrievalError,
-    retrieve_context,
-)
+from app.services.retrieval import RetrievalError
+from app.services.langchain_rag import retrieve_context_with_langchain
 
 
 router = APIRouter(
@@ -128,7 +126,7 @@ def stream_incident_analysis(
     )
 
     try:
-        retrieval_result = retrieve_context(
+        retrieval_result = retrieve_context_with_langchain(
             db=db,
             knowledge_base_id=knowledge_base_id,
             question=(
