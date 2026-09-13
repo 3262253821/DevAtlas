@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 import { streamIncident } from "../api/incidents";
+import { renderMarkdown } from "../utils/markdown";
 
 interface Citation {
   index: number;
@@ -27,6 +28,10 @@ let controller: AbortController | null = null;
 
 const knowledgeBaseId = computed(() => {
   return Number(route.params.id);
+});
+
+const renderedResult = computed(() => {
+  return renderMarkdown(result.value);
 });
 
 // 流式结果增长时跟随底部，但不打断用户主动查看旧内容。
@@ -183,9 +188,10 @@ async function submit(): Promise<void> {
             </div>
           </template>
 
-          <div class="result-content">
-            {{ result }}
-          </div>
+          <div
+            class="result-content markdown-body"
+            v-html="renderedResult"
+          />
         </el-card>
 
         <el-card v-if="citations.length" class="citation-card">
@@ -387,9 +393,115 @@ async function submit(): Promise<void> {
 }
 
 .result-content {
-  white-space: pre-wrap;
   color: var(--ink-700);
   line-height: 1.8;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  margin: 1.15em 0 0.55em;
+  color: var(--ink-950);
+  line-height: 1.35;
+}
+
+.markdown-body :deep(h1) {
+  font-size: 1.45em;
+}
+
+.markdown-body :deep(h2) {
+  font-size: 1.25em;
+}
+
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  font-size: 1.08em;
+}
+
+.markdown-body :deep(p) {
+  margin: 0.7em 0;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 0.65em 0;
+  padding-left: 1.55em;
+}
+
+.markdown-body :deep(li) {
+  margin: 0.28em 0;
+}
+
+.markdown-body :deep(strong) {
+  color: var(--ink-950);
+  font-weight: 750;
+}
+
+.markdown-body :deep(code) {
+  padding: 0.12em 0.38em;
+  border-radius: 5px;
+  color: #8a551b;
+  background: #fff3df;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-body :deep(pre) {
+  margin: 1em 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid #e9dcc8;
+  border-radius: 9px;
+  color: #3e352b;
+  background: #faf7f1;
+}
+
+.markdown-body :deep(pre code) {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font-size: 0.86em;
+  line-height: 1.65;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 1em 0;
+  padding: 0.55em 1em;
+  border-left: 3px solid var(--amber);
+  color: var(--ink-500);
+  background: #fff8eb;
+}
+
+.markdown-body :deep(blockquote p) {
+  margin: 0;
+}
+
+.markdown-body :deep(table) {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: 0.93em;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-body :deep(th) {
+  color: var(--ink-950);
+  background: #fff5e5;
+  font-weight: 700;
+}
+
+.markdown-body :deep(a) {
+  color: #9a641e;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .result-card :deep(.el-card__header) {

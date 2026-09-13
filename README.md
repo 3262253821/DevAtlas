@@ -42,6 +42,7 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - 优化阶段 P0：已完成文档版本切换时机修复、当前 indexed 版本过滤、重复上传幂等、解析/Embedding/Chroma 失败回退和文件边界测试。
 - 优化阶段 P1：已完成文档状态常量、处理阶段日志、前端状态中文映射，以及 Top-K、无答案和引用 metadata 的可复现检索测试。
 - 优化阶段 P2：已接入 LangChain Retriever 和 ChatPromptTemplate；保留自定义权限、版本过滤、Chroma 查询、DeepSeek 客户端和 SSE 契约。
+- 前端展示优化：问答和故障分析结果支持安全的 Markdown 渲染，标题、列表、表格、代码和引用块可读性更好。
 - 优化阶段下一步：根据真实需求评估 Redis、Reranker 等增强项；Redis、MCP、多 Agent 等仍不主动加入。
 
 ## 项目结构
@@ -168,6 +169,8 @@ http://127.0.0.1:5173
 - `/incidents`：故障分析历史、详情和删除。
 
 前端使用 Axios 统一携带 JWT，使用 `fetch + ReadableStream` 解析 SSE 的 `token`、`citation`、`done` 和 `error` 事件。后端通过 CORS 允许本地 `5173` 前端访问 `8000` API。
+
+问答页和故障分析页使用 `frontend/src/utils/markdown.ts` 统一渲染模型返回的 Markdown，关闭原始 HTML 解析，避免模型输出被当作可执行 HTML；前端只改变展示方式，不改变后端 API 和 SSE 事件协议。
 
 ## 数据库迁移
 
