@@ -15,6 +15,7 @@ class UnsupportedDocumentTypeError(DocumentParseError):
 class EmptyDocumentError(DocumentParseError):
     """文档解析后没有有效文本。"""
 
+# @dataclass可以理解成：自动帮你生成一个用来保存数据的类
 # frozen=True：返回后不能随意修改，避免后续业务流程意外改掉解析结果
 @dataclass(frozen=True)
 class ParsedDocument:
@@ -38,10 +39,13 @@ def parse_document(
             f"Document file does not exist: {file_path}"
         )
 
+    # lower转换为小写，removeprefix(".")去掉文件后缀的点
+    # file_path.suffix是指将文件取.后缀名，例如demo.pdf 取".pdf"
     normalized_type = (
         file_type or file_path.suffix
     ).lower().removeprefix(".")
 
+    # 解析 TXT 和 Markdown 文件
     if normalized_type in {"txt", "md"}:
         try:
             text = file_path.read_text(encoding="utf-8")
@@ -52,10 +56,13 @@ def parse_document(
 
         page_count = None
 
+    # 解析 PDF 文件
     elif normalized_type == "pdf":
         try:
+            # 使用pypdf解析PDF文件
             reader = PdfReader(str(file_path))
             page_texts = [
+                # 提取每一页的文本内容
                 page.extract_text() or ""
                 for page in reader.pages
             ]
@@ -82,5 +89,7 @@ def parse_document(
     return ParsedDocument(
         text=cleaned_text,
         file_type=normalized_type,
+        # 虽然被解析出来了，但后面当前的切分和 metadata 没有真正把页码映射到每个 chunk，page_number 仍然是 None。
+        # 所以现在只能知道 PDF 总页数，不能准确告诉检索结果来自第几页。
         page_count=page_count,
     )

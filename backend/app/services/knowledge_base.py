@@ -30,6 +30,7 @@ def create_knowledge_base(
     if existing_knowledge_base is not None:
         raise DuplicateKnowledgeBaseError
 
+    # 创建知识库对象
     knowledge_base = KnowledgeBase(
         owner_id=owner_id,
         name=data.name,

@@ -50,11 +50,12 @@ def embed_texts(
     try:
         # 加载模型
         model = get_embedding_model()
-        # 文本向量化
+        # 文本向量化,批量处理
         vectors = model.encode(
             cleaned_texts,
             # 归一化向量，确保向量长度为 1
             normalize_embeddings=True,
+            # 表示让模型返回 NumPy 数组，而不是普通 Python 列表
             convert_to_numpy=True,
         )
 

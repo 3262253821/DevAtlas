@@ -15,19 +15,19 @@ class IncidentCitation(Base):
         primary_key=True,
         autoincrement=True,
     )
-
+    # 关联的事件ID
     incident_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
         ForeignKey("incidents.id", ondelete="CASCADE"),
         nullable=False,
     )
-
+    # 关联的文档切片ID
     document_chunk_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
         ForeignKey("document_chunks.id", ondelete="CASCADE"),
         nullable=False,
     )
-
+    # 关联的文档切片在事件中的序号
     citation_index: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
         nullable=False,

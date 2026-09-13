@@ -18,6 +18,8 @@ class KnowledgeBase(Base):
 
     owner_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
+        # ForeignKey：外键约束，引用 users 表的 id 字段，一个用户可以创建多个知识库
+        # ondelete="CASCADE" 表示当用户被删除时，所有关联的知识库也会被删除
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -45,13 +47,19 @@ class KnowledgeBase(Base):
         onupdate=func.now(),
     )
 
+    # __table_args__：集中定义表级约束和索引
     __table_args__ = (
+        # 创建唯一约束，防止重复数据：保证知识库名称在每个用户下是唯一的
         UniqueConstraint(
             "owner_id",
             "name",
             name="uq_knowledge_bases_owner_name",
         ),
+        # 创建索引，加快查询
         Index(
+            # 索引名称：ix_knowledge_bases_owner_updated
+            # 索引字段：owner_id, updated_at
+            # 索引类型：BTREE
             "ix_knowledge_bases_owner_updated",
             "owner_id",
             "updated_at",

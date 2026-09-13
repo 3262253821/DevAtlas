@@ -87,6 +87,7 @@ async def save_uploaded_file(
 
                 file_size += len(chunk)
 
+                # 检查文件大小是否超过限制，最大10MB
                 if file_size > MAX_FILE_SIZE:
                     raise FileTooLargeError(
                         "File size exceeds the 10 MB limit"

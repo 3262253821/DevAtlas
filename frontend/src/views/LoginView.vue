@@ -32,6 +32,11 @@ function getErrorMessage(error: unknown): string {
 }
 
 async function submit(): Promise<void> {
+  if (!agreed.value) {
+    showPolicyWarning();
+    return;
+  }
+
   if (!form.username.trim() || !form.password) {
     ElMessage.warning("请输入用户名和密码");
     return;
@@ -61,6 +66,15 @@ async function submit(): Promise<void> {
   }
 }
 
+function showPolicyWarning(): void {
+  policyShaking.value = true;
+  ElMessage.warning("请先同意服务协议与隐私政策");
+
+  window.setTimeout(() => {
+    policyShaking.value = false;
+  }, 420);
+}
+
 function guardSubmitClick(event: MouseEvent): void {
   if (agreed.value) {
     return;
@@ -68,12 +82,7 @@ function guardSubmitClick(event: MouseEvent): void {
 
   event.preventDefault();
   event.stopPropagation();
-  policyShaking.value = true;
-  ElMessage.warning("请先同意服务协议与隐私政策");
-
-  window.setTimeout(() => {
-    policyShaking.value = false;
-  }, 420);
+  showPolicyWarning();
 }
 </script>
 
@@ -109,6 +118,7 @@ function guardSubmitClick(event: MouseEvent): void {
           class="auth-form"
           :model="form"
           @submit.prevent="submit"
+          @keydown.enter.prevent="submit"
         >
           <el-form-item label="用户名">
             <el-input

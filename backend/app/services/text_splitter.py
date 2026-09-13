@@ -17,6 +17,7 @@ def split_text_by_sentence(
             "chunk_size must be greater than 0"
         )
 
+    # 移除文本中的控制字符和首尾空格
     cleaned_text = text.replace("\x00", "").strip()
 
     if not cleaned_text:
@@ -37,7 +38,7 @@ def split_text_by_sentence(
     current_length = 0
 
     for sentence in sentences:
-        # 单个句子超过上限时，按字符硬切。
+        # 单个句子超过上限时，按字符硬切。即兜底策略。
         if len(sentence) > chunk_size:
             if current_sentences:
                 chunks.append(

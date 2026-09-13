@@ -25,7 +25,7 @@ router = APIRouter(
     tags=["auth"],
 )
 
-
+# 注册
 @router.post(
     "/register",
     response_model=UserPublic,
@@ -43,7 +43,7 @@ def register(
             detail="Username already exists",
         )
 
-
+# 登录
 @router.post(
     "/login",
     response_model=TokenResponse,
@@ -57,6 +57,7 @@ def login(
     except AuthenticationError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
+            # 认证失败，不返回username & password错误，而是返回通用错误，防止进行枚举攻击
             detail="Incorrect username or password",
             headers={
                 "WWW-Authenticate": "Bearer",

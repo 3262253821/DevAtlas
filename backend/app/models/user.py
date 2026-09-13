@@ -11,8 +11,10 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(
+        # BIGINT(unsigned=True) 表示无符号整数，用于存储用户ID
         BIGINT(unsigned=True),
         primary_key=True,
+        # autoincrement=True 表示数据库会自动为每个新记录生成一个唯一的ID
         autoincrement=True,
     )
 
@@ -31,7 +33,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
+        # default：SQLAlchemy 在 Python 代码层面提供默认值
         default="user",
+        # server_default：数据库 MySQL 自己提供默认值
         server_default="user",
     )
 

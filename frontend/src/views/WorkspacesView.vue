@@ -200,15 +200,26 @@ onMounted(loadWorkspaces);
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column label="操作" width="236" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openWorkspace(row)">
-                  进入工作台
-                </el-button>
+                <div class="workspace-row-actions">
+                  <el-button
+                    class="workspace-enter-button"
+                    type="primary"
+                    @click="openWorkspace(row)"
+                  >
+                    进入工作台
+                  </el-button>
 
-                <el-button link type="danger" @click="removeWorkspace(row)">
-                  删除
-                </el-button>
+                  <el-button
+                    class="workspace-delete-button"
+                    type="danger"
+                    plain
+                    @click="removeWorkspace(row)"
+                  >
+                    删除
+                  </el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -443,6 +454,45 @@ onMounted(loadWorkspaces);
 
 .workspace-card :deep(.el-empty) {
   padding: 88px 24px;
+}
+
+.workspace-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.workspace-row-actions :deep(.el-button) {
+  min-height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.workspace-row-actions :deep(.workspace-enter-button) {
+  border-color: var(--teal);
+  color: var(--ink-950);
+  background: var(--teal);
+}
+
+.workspace-row-actions :deep(.workspace-enter-button:hover) {
+  border-color: var(--teal-dark);
+  background: var(--teal-dark);
+}
+
+.workspace-row-actions :deep(.workspace-delete-button) {
+  border-color: #e08b82;
+  color: #c54e42;
+  background: #fff8f7;
+}
+
+.workspace-row-actions :deep(.workspace-delete-button:hover) {
+  border-color: #c54e42;
+  color: #ffffff;
+  background: #d85c49;
 }
 
 .workspace-activity-panel {

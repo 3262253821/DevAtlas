@@ -17,6 +17,7 @@ class VectorStoreError(Exception):
 def _resolve_persist_dir(
     persist_dir: Path | None = None,
 ) -> Path:
+    # 如果调用者传了 persist_dir,就用它,否则用配置文件里的 chroma_persist_dir
     directory = (
         persist_dir
         if persist_dir is not None
@@ -25,7 +26,9 @@ def _resolve_persist_dir(
 
     resolved_dir = directory.resolve()
     resolved_dir.mkdir(
+        # 父目录不存在也一起创建
         parents=True,
+        # 目录已经存在时不报错
         exist_ok=True,
     )
 
@@ -95,6 +98,7 @@ def build_vector_id(
     )
 
 
+# 写入文档块到 Chroma 集合
 def upsert_chunks(
     *,
     knowledge_base_id: int,
@@ -103,6 +107,7 @@ def upsert_chunks(
     chunks: list[str],
     embeddings: list[list[float]],
     metadatas: list[dict[str, Any]],
+    # 表示 Chroma 持久化目录
     persist_dir: Path | None = None,
 ) -> list[str]:
     """
@@ -123,6 +128,8 @@ def upsert_chunks(
             "Chunks and metadatas count do not match"
         )
 
+    # 这份 ID 实际传给 Chroma 作为文档块的唯一标识
+    # 每个 ID 都是唯一的，对应一个文档块的向量表示
     ids = [
         build_vector_id(
             knowledge_base_id=knowledge_base_id,
@@ -156,6 +163,7 @@ def upsert_chunks(
     return ids
 
 
+# 删除指定向量
 def delete_vectors(
     vector_ids: list[str],
     persist_dir: Path | None = None,

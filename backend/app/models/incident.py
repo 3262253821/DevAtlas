@@ -15,24 +15,24 @@ class Incident(Base):
         primary_key=True,
         autoincrement=True,
     )
-
+    # 谁发起的事件，关联用户表
     owner_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-
+    # 关联的知识库，用于事件处理
     knowledge_base_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
         ForeignKey("knowledge_bases.id", ondelete="CASCADE"),
         nullable=False,
     )
-
+    # 故障标题
     title: Mapped[str] = mapped_column(
         String(200),
         nullable=False,
     )
-
+    # 用户输入的故障信息
     input_content: Mapped[str] = mapped_column(
         LONGTEXT(),
         nullable=False,
@@ -44,7 +44,7 @@ class Incident(Base):
         default="streaming",
         server_default="streaming",
     )
-
+    # 处理结果
     result: Mapped[str | None] = mapped_column(
         LONGTEXT(),
         nullable=True,
@@ -54,7 +54,7 @@ class Incident(Base):
         Text,
         nullable=True,
     )
-
+    # 使用的模型名称
     model_name: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,

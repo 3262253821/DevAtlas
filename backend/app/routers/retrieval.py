@@ -45,6 +45,13 @@ def search_knowledge_base(
             detail="Knowledge base not found",
         )
 
+    # Pydantic 的 min_length 只能判断字符串长度，不能拦截全是空格的问题。
+    if not data.question.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Question cannot be empty",
+        )
+
     try:
         result = retrieve_context_with_langchain(
             db=db,

@@ -22,7 +22,9 @@ class DocumentVersion(Base):
         primary_key=True,
         autoincrement=True,
     )
-
+    # 文档ID
+    # ForeignKey：外键约束，引用 documents 表的 id 字段，一个文档可以有多个版本
+    # ondelete="CASCADE" 表示当文档被删除时，所有关联的文档版本也会被删除
     document_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
         ForeignKey(
@@ -36,22 +38,24 @@ class DocumentVersion(Base):
         INTEGER(unsigned=True),
         nullable=False,
     )
-
+    # 文件SHA256哈希值
     file_sha256: Mapped[str] = mapped_column(
         CHAR(64),
         nullable=False,
     )
-
+    # 存储路径
     storage_path: Mapped[str] = mapped_column(
         String(500),
         nullable=False,
     )
-
+    # 文件大小
     file_size: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
         nullable=False,
     )
-
+    # pending  → 等待处理
+    # indexed  → 已完成切分、向量化和入库
+    # failed   → 处理失败   
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
@@ -62,7 +66,7 @@ class DocumentVersion(Base):
         Text,
         nullable=True,
     )
-
+    # 分块数量
     chunk_count: Mapped[int] = mapped_column(
         INTEGER(unsigned=True),
         nullable=False,
@@ -84,11 +88,13 @@ class DocumentVersion(Base):
     )
 
     __table_args__ = (
+        # 表示同一个文档不能有两个相同的 version_number
         UniqueConstraint(
             "document_id",
             "version_number",
             name="uq_document_versions_number",
         ),
+        # 靠唯一约束去重：同内容再传，直接返回已有版本，不产生新版本
         UniqueConstraint(
             "document_id",
             "file_sha256",

@@ -26,13 +26,18 @@ app = FastAPI(
 )
 
 app.add_middleware(
+    # CORS中间件，允许跨域请求，用于开发环境
+    # 中间件可理解为：请求进入具体路由之前，以及响应返回浏览器之前，统一经过的一层处理
     CORSMiddleware,
     allow_origins=[
         "http://127.0.0.1:5173",
         "http://localhost:5173",
     ],
+    # 表示允许浏览器携带凭证
     allow_credentials=True,
+    # 允许所有请求方法
     allow_methods=["*"],
+    # 允许所有请求头
     allow_headers=["*"],
 )
 

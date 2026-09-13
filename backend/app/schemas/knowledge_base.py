@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
+# 知识库创建请求模型
 class KnowledgeBaseCreate(BaseModel):
     name: str = Field(
         min_length=1,
@@ -13,7 +13,7 @@ class KnowledgeBaseCreate(BaseModel):
         max_length=500,
     )
 
-
+# 知识库公开模型模型
 class KnowledgeBasePublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -19,10 +19,12 @@ bearer_scheme = HTTPBearer(
 # 获取当前用户
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(
+        # 表示缺少认证信息时，不让 FastAPI 立刻自动报错，而是交给下面的代码统一处理
         bearer_scheme
     ),
     db: Session = Depends(get_db),
 ) -> User:
+    # 没有token时，返回401错误
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -58,6 +60,7 @@ def get_current_user(
             },
         )
 
+    # 根据用户 ID 查数据库，返回用户对象
     user = db.scalar(
         select(User).where(User.id == user_id)
     )
@@ -71,6 +74,7 @@ def get_current_user(
             },
         )
 
+    # 检查用户是否启用，未启用则返回403错误
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
