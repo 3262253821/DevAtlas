@@ -4,6 +4,10 @@
 
 DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并通过 RAG 和大模型辅助故障分析。第一版的核心目标是让用户能够上传团队文档，在权限范围内检索知识，并获得带来源引用的 AI 分析结果。
 
+> **项目状态说明**：DevAtlas 当前是**开发环境 / MVP 项目**，用于本地开发、演示和技术验证，
+> **没有生产环境部署和上线记录**。README 中所有能力描述均以当前代码为准，未实现的能力
+> 一律放在「当前限制和后续规划」中，不会被描述为已具备。
+
 ## 当前技术栈
 
 - 前端：Vue 3、TypeScript、Vite、Element Plus、Pinia、Axios
@@ -16,6 +20,190 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 - 认证：JWT、HTTP Bearer
 - 密码安全：Argon2id 哈希
 - 流式输出：SSE
+
+## 项目解决的问题和目标用户
+
+研发和运维团队的技术知识长期散落在个人电脑、聊天记录和过期的共享文档里，常见问题是：
+文档有多个版本但没人知道哪一版才是当前生效的；换人接手后只能靠口头交接；排障时
+需要人工翻找资料，得到的结论又缺少可追溯的来源。
+
+DevAtlas 的目标用户是：
+
+- 需要沉淀和交接技术资料的研发团队成员；
+- 需要按既定手册快速定位线上问题的运维／值班人员；
+- 需要带来源依据做故障复盘的负责人。
+
+DevAtlas 用「逻辑文档 + 版本序列」管理知识，用 RAG 检索保证回答有据可依，
+用来源引用保证结论可追溯。
+
+## 系统架构
+
+```mermaid
+flowchart TB
+    Browser["浏览器 · Vue 3 + TypeScript + Element Plus"]
+    API["FastAPI · /api/v1"]
+    Auth["JWT 鉴权 + owner 权限隔离"]
+    Ingestion["文档接入: 解析 · 切分 · Embedding"]
+    Retrieval["检索: 版本过滤 + Top-K"]
+    LC["LangChain 适配层: Retriever + ChatPromptTemplate"]
+    MySQL[("MySQL: 业务事实与原文")]
+    Chroma[("Chroma: 向量与检索 metadata")]
+    BGE["BGE Embedding · bge-small-zh-v1.5"]
+    DeepSeek["DeepSeek · OpenAI 兼容接口"]
+
+    Browser -->|"HTTP / SSE"| API
+    API --> Auth
+    API --> Ingestion
+    API --> Retrieval
+    Ingestion --> BGE
+    BGE --> Chroma
+    Ingestion --> MySQL
+    Retrieval --> Chroma
+    Retrieval --> MySQL
+    Retrieval --> LC
+    LC --> DeepSeek
+    DeepSeek -->|"token 流"| API
+    API -->|"SSE token/citation/done"| Browser
+```
+
+各组件职责：
+
+| 组件 | 真实职责 |
+| --- | --- |
+| Vue 3 前端 | 登录注册、知识库与文档管理、问答与故障分析页面、SSE 解析、Markdown 安全渲染 |
+| FastAPI | HTTP 接口、鉴权依赖、参数校验、SSE 响应、业务编排 |
+| MySQL | 用户、知识库、逻辑文档、版本元数据、chunk 原文、故障记录与引用 |
+| Chroma | chunk 向量与检索用 metadata |
+| BGE Embedding | 本地把问题和 chunk 转成向量 |
+| DeepSeek | 基于检索上下文生成回答 |
+| LangChain Core | Retriever 适配层与 Prompt 模板 |
+
+## 数据模型和文档版本管理
+
+当前共 7 张表：
+
+| 表 | 作用 |
+| --- | --- |
+| `users` | 用户、Argon2id 密码哈希、启用状态 |
+| `knowledge_bases` | 知识库，`owner_id` 绑定所有者 |
+| `documents` | **逻辑文档**，用 `current_version_id` 指向当前生效版本 |
+| `document_versions` | 版本序列，保存 `file_sha256`、`file_size`、`status`、`error_message`、`chunk_count` |
+| `document_chunks` | 切片原文、`chunk_index`、`vector_id`、页码与字符区间 |
+| `incidents` | 故障分析记录与状态流转 |
+| `incident_citations` | 故障分析引用到的 chunk |
+
+版本管理的核心规则：
+
+- 同一知识库下 `normalized_filename` 唯一，保证同名文件收敛到同一条逻辑文档；
+- 同一文档下 `(document_id, version_number)` 与 `(document_id, file_sha256)` 都唯一，
+  因此相同内容重复上传**不会**产生新版本，而是复用已有版本；
+- 新版本创建后先保持 `pending`，只有解析、切分、Embedding、Chroma 写入和 MySQL chunk
+  保存全部成功，才切换 `current_version_id` 并标记 `indexed`；
+- 任一步失败时新版本记为 `failed` 并保留错误原因，旧的 `indexed` 版本继续参与检索。
+
+## MySQL 与 Chroma 的分工
+
+两个存储不是简单的主从关系，而是各管一段：
+
+- **MySQL 是业务事实来源**：谁能访问、有哪些文档和版本、每个版本是什么状态、chunk 原文
+  是什么、故障记录和引用关系，全部以 MySQL 为准；
+- **Chroma 只负责相似度检索**：保存 chunk 向量和检索必需的 metadata；
+- 两者通过 `document_chunks.vector_id` 这一唯一键关联；
+- 检索时用 metadata 过滤 `knowledge_base_id`、`document_version_id`（取当前 indexed 版本）
+  和 `is_searchable=true`，确保只召回当前生效版本的内容。
+
+因为写入跨两个存储，所以存在一致性问题。当前实现的做法是：编排层先写 Chroma 再写
+MySQL，全部成功后才切换当前版本；如果 Chroma 已写入部分向量但后续步骤失败，会执行
+补偿删除，避免 Chroma 中残留孤立向量。删除文档时的顺序是先清理 Chroma 向量，再删除
+原始文件，最后删除 MySQL 记录——这样不会在 MySQL 删除后丢失清理向量所需的 `vector_id`。
+
+## RAG 检索流程
+
+```text
+用户问题
+→ Pydantic 校验（空字符串和纯空格都返回 422）
+→ 校验当前用户是否拥有该知识库
+→ 从 MySQL 取出该知识库中 status = indexed 的版本
+→ BGE 把问题转成向量
+→ 以 knowledge_base_id + document_version_id + is_searchable 过滤 Chroma
+→ 取距离最小的 Top-K 个 chunk
+→ 拼装 context 并返回 sources（文档、版本、chunk、文件名、距离、页码）
+→ 交给 LangChain ChatPromptTemplate 组织的 Prompt
+→ DeepSeek 生成
+→ 普通接口返回 JSON，流式接口返回 SSE
+```
+
+`top_k` 表示最多召回多少个最相似的切片，**不限制**最终回答长度。
+
+## LangChain 的职责边界
+
+这一点在面试中经常被追问，当前实现的边界是刻意划清的：
+
+- **用了**：`langchain_core.retrievers.BaseRetriever` 做检索适配，
+  `langchain_core.documents.Document` 做标准载体，`ChatPromptTemplate` 组织 Prompt；
+- **没用**：LangChain 的 Agent、Chain 编排、Memory，也没有用它的向量库封装；
+- 权限校验、版本过滤、Chroma 查询条件、DeepSeek 客户端、SSE 事件契约**仍然全部由
+  DevAtlas 自己控制**。
+
+`DevAtlasRetriever._get_relevant_documents()` 内部调用的仍是项目自己的
+`retrieve_context()`，LangChain 只提供标准接口形状，不接管安全边界。这样做的原因是：
+版本过滤和 owner 隔离是业务正确性的前提，不适合交给框架的默认行为。
+
+## JWT 权限隔离
+
+- 登录接口使用 **JSON 请求体**（不是 OAuth2 Password Flow 的表单），成功后返回 JWT；
+- 服务端通过 HTTP Bearer 解析 Token，再按 Token 中的用户 ID 查询用户，并校验用户仍然
+  存在且 `is_active`；
+- 知识库的 `owner_id` 一律由服务端从当前用户推导，**不信任**客户端传入的所有者 ID；
+- 文档、版本、故障记录的查询与删除同样叠加 owner 条件；
+- 跨用户访问统一返回 `404` 而不是 `403`，避免泄露资源是否存在；
+- 密码使用 Argon2id 哈希后入库，登录失败只返回统一的凭据错误，避免用户名枚举。
+
+## SSE 流式输出
+
+问答和故障分析都使用 `text/event-stream`，通过 `fetch + ReadableStream` 在前端解析。
+
+事件类型：
+
+| 事件 | 数据字段 |
+| --- | --- |
+| `token` | `{"text": "..."}` |
+| `citation` | `{"index", "document_id", "version_id", "version_number", "chunk_index", "filename", "distance"}` |
+| `done` | 问答：`{"conversation_id", "message_id"}`；故障：`{"incident_id", "status"}` |
+| `error` | `{"code": "LLM_SERVICE_ERROR", "message": "大模型服务暂时不可用"}` |
+
+正常顺序是多个 `token` → 多个 `citation` → `done`。没有检索到来源时不会调用大模型，
+而是直接返回一条提示文本和 `done`。
+
+## 故障分析
+
+故障分析使用独立的 `incidents` 记录，不会把分析结果写回知识库文档。
+
+流程：创建 `streaming` 状态的记录 → 以「标题 + 故障描述」作为查询做检索
+（固定 `top_k = 5`）→ 使用故障专用 Prompt 调用 DeepSeek → SSE 返回 `token` 和
+`citation` → 完成后写入 `result` 与引用并标记 `completed`。
+
+状态流转：`streaming → completed`（成功）、`streaming → failed`（大模型失败或检索失败）、
+`streaming → cancelled`（客户端主动断开）。故障历史和引用记录都可以在 `/incidents`
+页面回看，引用会关联到具体 chunk。
+
+## 前端页面
+
+| 路由 | 说明 |
+| --- | --- |
+| `/login`、`/register` | 登录和注册 |
+| `/legal/terms`、`/legal/privacy` | 条款与隐私说明页 |
+| `/workspaces` | 当前用户的知识库列表、创建和删除 |
+| `/knowledge/:id` | 知识库工作台 |
+| `/knowledge/:id/documents` | 文档上传、状态查看、删除和重新索引 |
+| `/knowledge/:id/qa` | 知识库问答（SSE）与引用展示 |
+| `/knowledge/:id/incidents/new` | 发起故障分析（SSE） |
+| `/incidents` | 故障历史、详情和删除 |
+
+路由守卫基于 Pinia 中的登录状态：未登录访问受保护页面会跳转登录页并带上 `redirect`；
+已登录访问登录/注册页会跳回 `/workspaces`。问答和故障分析结果使用
+`frontend/src/utils/markdown.ts` 统一渲染，关闭原始 HTML 解析，避免模型输出被当作
+可执行 HTML。
 
 ## 当前开发状态
 
@@ -48,27 +236,41 @@ DevAtlas 面向研发和运维团队，集中管理版本化技术知识，并�
 ## 项目结构
 
 ```text
-E:\RagKnowledgeSystem
+RagKnowledgeSystem
 ├── backend
 │   ├── app
-│   │   ├── core          # 配置、安全工具、认证依赖
+│   │   ├── core          # 配置、安全工具、认证依赖、状态常量、文件安全校验
 │   │   ├── db            # SQLAlchemy Base、Engine、Session
-│   │   ├── models        # ORM 模型
-│   │   ├── routers       # HTTP 路由
+│   │   ├── models        # ORM 模型（7 张表）
+│   │   ├── routers       # HTTP 路由（auth / knowledge_base / documents / retrieval / qa / incidents）
 │   │   ├── schemas       # 请求和响应模型
 │   │   └── services      # 业务逻辑
 │   ├── alembic           # 数据库迁移配置和版本
+│   ├── scripts           # 开发种子数据脚本
 │   └── requirements.txt
 ├── frontend              # Vue + TypeScript 前端
 │   └── src
 │       ├── api           # Axios、SSE 和业务接口封装
 │       ├── router        # 页面路由和登录守卫
 │       ├── stores        # Pinia 登录状态
+│       ├── utils         # Markdown 安全渲染
 │       └── views         # 登录、知识库、文档、问答和故障页面
-├── docs                  # PRD、技术方案、API 和阶段总结
-├── tests                 # 自动化测试
-└── others                # 本地生成文件，不放业务源码
+├── docs                  # PRD、技术方案、API、架构和阶段总结
+├── tests                 # 自动化测试与示例文档
+└── others                # 本地生成文件（上传文件、Chroma 数据），不提交
 ```
+
+## 文档导航
+
+| 文档 | 内容 |
+| --- | --- |
+| [docs/项目介绍.md](docs/项目介绍.md) | 项目背景、用户角色、痛点、MVP 范围、亮点与难点 |
+| [docs/架构说明.md](docs/架构说明.md) | Mermaid 总体架构、鉴权、上传索引、RAG、SSE、故障分析与数据一致性 |
+| [docs/启动部署指南.md](docs/启动部署指南.md) | Windows PowerShell 从零启动、迁移、种子数据与常见错误 |
+| [docs/API使用说明.md](docs/API使用说明.md) | 全部真实接口、请求示例、SSE 事件格式与状态码 |
+| [docs/开发与测试指南.md](docs/开发与测试指南.md) | 开发环境、测试命令与各类验证场景 |
+| [docs/05-API接口文档.md](docs/05-API接口文档.md) | 设计阶段 API 文档（历史资料） |
+| [docs/05-数据库设计.md](docs/05-数据库设计.md) | 数据库设计说明 |
 
 ## 环境配置
 
@@ -287,7 +489,7 @@ T06 当前已完成原始文件的安全保存：
 python -m pytest tests -q
 ```
 
-当前结果：`18 passed`，仅有第三方依赖的 `DeprecationWarning`，不影响测试通过。
+当前结果：`23 passed`，仅有第三方依赖的 `DeprecationWarning`，不影响测试通过。
 
 ## 当前文档管理接口（T09）
 
@@ -412,6 +614,128 @@ DELETE /api/v1/incidents/{incident_id}
 处理流程：创建 `streaming` incident → 复用 T10 检索故障相关文档块 → 使用故障专用 Prompt 调用 DeepSeek → SSE 返回 `token` 和 `citation` → 完成后保存分析结果和引用并更新为 `completed`。LLM 失败时更新为 `failed`，客户端中断时更新为 `cancelled`。
 
 T13 新增 P0 表 `incidents` 和 `incident_citations`。所有 incident 查询、详情和删除都按当前用户的 `owner_id` 过滤，其他用户访问统一返回 `404`。
+
+## 运行测试
+
+在项目根目录执行：
+
+```powershell
+python -m compileall -q backend/app backend/scripts
+python -m pytest tests -q
+```
+
+前端构建与类型检查：
+
+```powershell
+Set-Location frontend
+npm run build
+```
+
+`npm run build` 等价于 `vue-tsc -b && vite build`，会先做 TypeScript 类型检查再打包。
+
+当前真实结果：
+
+| 命令 | 结果 |
+| --- | --- |
+| `python -m compileall -q backend/app backend/scripts` | 通过，退出码 0 |
+| `python -m pytest tests -q` | `23 passed, 2 warnings in 30.37s` |
+| `npm run build` | 成功，1692 modules transformed |
+
+测试覆盖的方面：文档版本切换时机、解析／Embedding／Chroma 失败回退、文件安全边界
+（路径穿越、非法扩展名、空文件、超大文件）、重复上传幂等、检索版本过滤、检索质量、
+LangChain 适配层、文本切分与向量入库。
+
+2 个 warning 来自第三方依赖：
+
+```text
+DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+```
+
+这是依赖内部实现的告警，不影响测试通过。另外 `npm run build` 会提示有 chunk 超过
+500 kB，属于前端暂未做代码分割的已知优化项。
+
+## 常见问题
+
+**Q：启动后端报数据库连接失败？**
+确认 MySQL 服务已启动、`dev_atlas` 库已创建，并且 `.env` 中的 `DATABASE_URL` 用户名、
+密码、端口与实际情况一致。
+
+**Q：访问 `/health/db` 返回失败？**
+说明 `DATABASE_URL` 配好了但连不上库。先确认库已创建，再执行 `alembic upgrade head`。
+
+**Q：注册或登录返回 422？**
+检查请求体是否为 JSON（不是表单），以及用户名 3-50 位、密码 8-128 位是否符合要求。
+
+**Q：前端请求后端被浏览器拦截？**
+`backend/app/main.py` 的 CORS 白名单只包含 `http://127.0.0.1:5173` 和
+`http://localhost:5173`。如果你换了端口或域名，需要同步修改白名单。
+
+**Q：问答接口返回 502？**
+`502` 表示 DeepSeek 调用失败，通常是缺少 `DEEPSEEK_API_KEY`、网络不通或接口超时。
+
+**Q：问答返回“当前知识库中没有检索到与该问题相关的内容”？**
+说明没有召回任何 chunk。请确认文档状态已经是 `indexed`，而不是 `pending` 或 `failed`。
+
+**Q：上传文档后一直是 `failed`？**
+调用 `GET /{knowledge_base_id}/documents/{document_id}` 查看 `error_message`，
+再用重新索引接口 `POST .../reindex` 重试。常见原因是 PDF 无可提取文本。
+
+**Q：`reindex` 返回 409？**
+`409` 表示该文档当前没有 `failed` 版本，属于正常业务结果，不是错误。
+
+**Q：第一次启动特别慢？**
+首次需要下载并加载 Embedding 模型，之后会使用本地缓存。
+
+**Q：本地数据被测试删掉了怎么恢复？**
+执行 `python backend/scripts/seed_dev_data.py` 恢复开发账号、知识库和示例文档。
+
+## 当前限制和后续规划
+
+当前限制（均为真实状态，不是缺陷隐瞒）：
+
+- 定位是开发环境 MVP，**没有生产部署、容器化和上线记录**；
+- 没有 Redis 缓存、没有 Reranker 重排序、没有 OCR（扫描版 PDF 无法提取文本）；
+- 没有 MCP、没有多 Agent 编排、没有微服务拆分、没有生产自动修复能力；
+- 知识库共享与团队成员体系未实现，权限模型是**单用户 owner 隔离**；
+- 问答历史未持久化，`conversation_id` 和 `message_id` 目前恒为 `null`（接口只保留结构）；
+- 没有刷新 Token、登出黑名单和找回密码；
+- 前端未做代码分割，构建产物体积偏大；
+- 没有真实用户量、准确率、召回率和吞吐量数据，也不会虚构这类指标。
+
+后续规划（**均为未完成规划，不是已实现能力**）：
+
+- 引入 Reranker 提升召回质量，并补充可量化的离线评测集；
+- 支持知识库共享与更细粒度的团队权限；
+- 持久化问答历史，落地 `conversation_id` / `message_id` 语义；
+- 前端按路由做代码分割，降低首屏体积；
+- 视真实需求评估缓存与异步任务队列（Redis 等），评估通过后再引入。
+
+## 简历项目描述建议
+
+可以按下面的思路写，**只写当前真实实现的内容**：
+
+> 独立开发面向研发团队的版本化 RAG 知识协同平台（Vue 3 + FastAPI + MySQL + Chroma）。
+> 设计「逻辑文档 + 多版本」模型，通过 SHA-256 幂等去重与 `current_version_id` 延迟切换，
+> 保证解析／向量化失败时旧版本仍可检索，并通过补偿删除处理 MySQL 与 Chroma 的跨存储
+> 一致性问题。基于 BGE 中文 Embedding 与 DeepSeek 实现带来源引用的 RAG 问答与故障分析，
+> 使用 SSE 流式返回 token 与 citation；接入 LangChain Retriever 与 ChatPromptTemplate
+> 作为适配层，同时保留自有的权限隔离与版本过滤逻辑。使用 JWT 与 Argon2id 实现认证
+> 与 owner 级数据隔离，并以 pytest 覆盖版本切换、失败回退和文件安全边界等场景。
+
+不建议在简历中写：生产环境上线、用户量、准确率／召回率数字、Docker/K8s 部署、
+Redis 缓存、多 Agent、Reranker——这些目前都**没有实现**，面试深挖时会直接失分。
+
+## 安全注意事项
+
+- `.env` 保存数据库密码、`JWT_SECRET_KEY` 和 `DEEPSEEK_API_KEY`，已被 `.gitignore`
+  忽略，**永远不要提交**；仓库只保留占位符版本 `.env.example`；
+- 上传文件会校验扩展名（仅 `.md`、`.txt`、`.pdf`）、限制 10 MB、清理控制字符、使用随机
+  存储名，并校验最终路径必须落在 `others/uploads` 内，防止路径穿越；
+- 知识库、文档和故障记录的查询删除全部叠加 owner 条件，跨用户统一返回 `404`；
+- 前端 Markdown 渲染关闭原始 HTML 解析，避免模型输出被当作可执行 HTML；
+- 生产环境还需要补充：HTTPS、密钥托管、上传文件的病毒扫描、接口限流、审计日志、
+  刷新 Token 与登出机制——这些在 MVP 阶段均未实现。
 
 ## Git 提交约定
 

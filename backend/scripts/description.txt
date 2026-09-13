@@ -1,0 +1,25 @@
+seed_dev_data.py是一个开发环境种子数据脚本，
+脚本功能：
+- 幂等创建开发账号；
+- 幂等创建开发知识库；
+- 导入 tests 下的 TXT、Markdown、PDF 示例文档；
+- 相同文件通过 SHA-256 判断，不会重复创建版本；
+- 已存在失败版本时，会尝试重新索引；
+- 自动使用现有文档解析、切分、Embedding、Chroma 入库流程；
+- 检测到 production 环境时拒绝执行；
+- 不读取、不输出 .env 中的数据库密码和 API Key。
+
+运行：
+cd E:\RagKnowledgeSystem
+python backend/scripts/seed_dev_data.py
+
+默认开发账号：
+用户名：devatlas-demo
+密码：DevAtlas123!
+知识库：DevAtlas 开发演示知识库
+
+也可以自定义：
+python backend/scripts/seed_dev_data.py `
+  --username devatlas-demo `
+  --password "你的本地开发密码" `
+  --knowledge-base-name "我的演示知识库"

@@ -24,7 +24,10 @@ output/
 uploads/
 others/uploads/
 others/chroma/
+# 兼容历史遗留的 backend/others 目录（本地向量数据与临时文件不提交）
+backend/others/
 *.db
+*.sqlite3
 
 # Node
 frontend/node_modules/
