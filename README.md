@@ -108,6 +108,30 @@ Swagger：
 http://127.0.0.1:8000/docs
 ```
 
+## 恢复本地开发种子数据
+
+如果本地测试删除了知识库、文档或故障记录，可以在项目根目录执行：
+
+```powershell
+python backend/scripts/seed_dev_data.py
+```
+
+执行前请先确认数据库已完成迁移：
+
+```powershell
+alembic upgrade head
+```
+
+脚本会幂等地创建开发账号和“DevAtlas 开发演示知识库”，并导入 `tests` 目录中的 TXT、Markdown、PDF 示例文档。相同文件内容会通过 SHA-256 检查，不会重复创建版本。
+
+默认开发账号为 `devatlas-demo`，默认开发密码为 `DevAtlas123!`。也可以显式传入，或使用环境变量：
+
+```powershell
+python backend/scripts/seed_dev_data.py --username devatlas-demo --password "你的本地开发密码"
+```
+
+该脚本只用于本地 development 环境，不要在生产数据库执行，也不要把真实密码写入脚本或提交到 Git。
+
 ## 启动前端
 
 ```powershell
