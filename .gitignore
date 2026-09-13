@@ -38,3 +38,12 @@ frontend/dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# 个人材料：不入公开仓库，仅保留在本地
+# （Word 草稿的文档属性里带有本机用户名，求职/学习笔记属于个人内容）
+*.docx
+docs/面经-DevAtlas.md
+docs/项目知识点整理.md
+docs/项目交接文档.md
+docs/项目补充优化.md
+docs/导学-DevAtlas.md

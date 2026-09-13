@@ -127,7 +127,7 @@ def _get_or_create_knowledge_base(
     knowledge_base = KnowledgeBase(
         owner_id=owner_id,
         name=name,
-        description="用于本地开发、演示和面试录屏的示例知识库",
+        description="用于本地开发与功能演示的示例知识库",
     )
     db.add(knowledge_base)
     db.commit()
